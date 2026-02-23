@@ -11,6 +11,7 @@ from scipy.stats import gaussian_kde, stats
 from random import sample, seed
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
+import glob
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -20,7 +21,7 @@ warnings.filterwarnings("ignore")
 
 # Plotting options (these are not in HDF5, so keep as user options)
 whichimf = 1        # 0=Salpeter; 1=Chabrier
-dilute = 100000     # Number of galaxies to plot in scatter plots
+dilute = 7500     # Number of galaxies to plot in scatter plots
 sSFRcut = -11.0     # Divide quiescent from star forming galaxies
 
 OutputFormat = '.pdf'
@@ -67,8 +68,6 @@ def read_simulation_params(filepath):
         runtime = f['Header/Runtime']
         params['VolumeFraction'] = float(runtime.attrs['frac_volume_processed'])
         params['SFprescription'] = int(runtime.attrs['SFprescription'])
-        params['DustOn'] = int(runtime.attrs['DustOn'])
-        params['DarkSAGEOn'] = int(runtime.attrs['DarkSAGEOn'])
 
         # Read snapshot info
         params['snapshot_redshifts'] = np.array(f['Header/snapshot_redshifts'])
@@ -90,10 +89,21 @@ def get_snapshot_redshift(params, snap_num):
     return None
 
 
-def read_hdf(filepath, snap_num, param):
-    """Read a parameter from the HDF5 file for a given snapshot"""
-    with h5.File(filepath, 'r') as f:
-        return np.array(f[snap_num][param])
+def read_hdf(filepaths, snap_num, param):
+    """Read and concatenate a parameter from multiple HDF5 files for a given snapshot"""
+    data_list = []
+    for filepath in filepaths:
+        with h5.File(filepath, 'r') as f:
+            if snap_num in f and param in f[snap_num]:
+                data = np.array(f[snap_num][param])
+                # Only append if the array has data
+                if data.size > 0:
+                    data_list.append(data)
+    
+    if not data_list:
+        return np.array([])
+    
+    return np.concatenate(data_list)
 
 def read_obs_data(obs_dir, filename):
     """Read observational data files"""
@@ -119,9 +129,9 @@ Examples:
         """
     )
 
-    parser.add_argument('input_file', nargs='?',
-                        default='./output/millennium/model_0.hdf5',
-                        help='Path to model HDF5 file (default: ./output/millennium/model_0.hdf5)')
+    parser.add_argument('input_pattern', nargs='?',
+                        default='./output/millennium/model_*.hdf5',
+                        help='Path pattern to model HDF5 files (default: ./output/millennium/model_*.hdf5)')
 
     parser.add_argument('-s', '--snapshot', type=int, default=None,
                         help='Snapshot number to plot (default: latest available)')
@@ -144,19 +154,34 @@ if __name__ == '__main__':
     # Parse command-line arguments
     args = parse_arguments()
 
-    # Determine paths
+    # Determine paths and find files
     script_dir = get_script_dir()
-    input_file = os.path.abspath(args.input_file)
-    input_dir = os.path.dirname(input_file)
+    
+    # Use glob to find all files matching the pattern
+    file_list = glob.glob(args.input_pattern)
+    file_list.sort() # Ensure consistent ordering
 
-    # Check input file exists
-    if not os.path.exists(input_file):
-        print(f"Error: Input file not found: {input_file}")
+    if not file_list:
+        print(f"Error: No files found matching: {args.input_pattern}")
         sys.exit(1)
 
-    # Read simulation parameters from HDF5 header
-    print(f'Reading simulation parameters from {input_file}')
-    sim_params = read_simulation_params(input_file)
+    print(f"Found {len(file_list)} model files.")
+    
+    # Use the first file to set directories and read global parameters
+    first_file = os.path.abspath(file_list[0])
+    input_dir = os.path.dirname(first_file)
+
+    # Read simulation parameters from the first HDF5 header
+    print(f'Reading simulation parameters from {first_file}')
+    sim_params = read_simulation_params(first_file)
+
+    # Calculate the total volume fraction across ALL files
+    total_volume_fraction = 0.0
+    for f in file_list:
+        p = read_simulation_params(f)
+        total_volume_fraction += p['VolumeFraction']
+    
+    sim_params['VolumeFraction'] = total_volume_fraction
 
     Hubble_h = sim_params['Hubble_h']
     BoxSize = sim_params['BoxSize']
@@ -164,16 +189,13 @@ if __name__ == '__main__':
 
     print(f'  Hubble_h = {Hubble_h}')
     print(f'  BoxSize = {BoxSize} h^-1 Mpc')
-    print(f'  VolumeFraction = {VolumeFraction}')
-    print(f'  DustOn = {sim_params["DustOn"]}')
-    print(f'  DarkSAGEOn = {sim_params["DarkSAGEOn"]}')
+    print(f'  Total VolumeFraction = {VolumeFraction}')
 
-    # Determine snapshot to use
+    # Determine snapshot to use (assuming all files have the same snapshots)
     if args.snapshot is not None:
         snap_num = args.snapshot
         if snap_num not in sim_params['available_snapshots']:
             print(f"Error: Snapshot {snap_num} not available in file.")
-            print(f"Available snapshots: {sim_params['available_snapshots']}")
             sys.exit(1)
     else:
         snap_num = sim_params['latest_snapshot']
@@ -189,7 +211,6 @@ if __name__ == '__main__':
         OutputDir = args.output_dir
     else:
         OutputDir = os.path.join(input_dir, 'plots')
-    # Ensure OutputDir ends with path separator for string concatenation
     if not OutputDir.endswith(os.sep):
         OutputDir += os.sep
 
@@ -198,74 +219,63 @@ if __name__ == '__main__':
     else:
         DataDir = os.path.join(script_dir, '..', 'data')
 
-    ObsDataDir = os.path.join(DataDir, 'Gas')
-    ObsDataDir2 = os.path.join(DataDir, 'MZR')
-
     if not os.path.exists(OutputDir):
         os.makedirs(OutputDir)
-
-    print(f'  Output directory: {OutputDir}')
-    print(f'  Data directory: {DataDir}')
-    print()
 
     seed(2222)
     volume = (BoxSize / Hubble_h)**3.0 * VolumeFraction
 
-    # Read galaxy properties
-    print(f'Reading galaxy properties from {input_file}, {Snapshot}')
+    # Read galaxy properties across ALL files
+    print(f'Reading galaxy properties from {len(file_list)} files for {Snapshot}...')
 
-    CentralMvir = read_hdf(input_file, Snapshot, 'CentralMvir') * 1.0e10 / Hubble_h
-    Mvir = read_hdf(input_file, Snapshot, 'Mvir') * 1.0e10 / Hubble_h
-    StellarMass = read_hdf(input_file, Snapshot, 'StellarMass') * 1.0e10 / Hubble_h
-    MetalsStellarMass = read_hdf(input_file, Snapshot, 'MetalsStellarMass') * 1.0e10 / Hubble_h
-    BulgeMass = read_hdf(input_file, Snapshot, 'BulgeMass') * 1.0e10 / Hubble_h
-    BlackHoleMass = read_hdf(input_file, Snapshot, 'BlackHoleMass') * 1.0e10 / Hubble_h
-    ColdGas = read_hdf(input_file, Snapshot, 'ColdGas') * 1.0e10 / Hubble_h
-    MetalsColdGas = read_hdf(input_file, Snapshot, 'MetalsColdGas') * 1.0e10 / Hubble_h
-    MetalsEjectedMass = read_hdf(input_file, Snapshot, 'MetalsEjectedMass') * 1.0e10 / Hubble_h
-    HotGas = read_hdf(input_file, Snapshot, 'HotGas') * 1.0e10 / Hubble_h
-    MetalsHotGas = read_hdf(input_file, Snapshot, 'MetalsHotGas') * 1.0e10 / Hubble_h
-    EjectedMass = read_hdf(input_file, Snapshot, 'EjectedMass') * 1.0e10 / Hubble_h
-    CGMgas = read_hdf(input_file, Snapshot, 'CGMgas') * 1.0e10 / Hubble_h
-    MetalsCGMgas = read_hdf(input_file, Snapshot, 'MetalsCGMgas') * 1.0e10 / Hubble_h
+    CentralMvir = read_hdf(file_list, Snapshot, 'CentralMvir') * 1.0e10 / Hubble_h
+    Mvir = read_hdf(file_list, Snapshot, 'Mvir') * 1.0e10 / Hubble_h
+    StellarMass = read_hdf(file_list, Snapshot, 'StellarMass') * 1.0e10 / Hubble_h
+    MetalsStellarMass = read_hdf(file_list, Snapshot, 'MetalsStellarMass') * 1.0e10 / Hubble_h
+    BulgeMass = read_hdf(file_list, Snapshot, 'BulgeMass') * 1.0e10 / Hubble_h
+    BlackHoleMass = read_hdf(file_list, Snapshot, 'BlackHoleMass') * 1.0e10 / Hubble_h
+    ColdGas = read_hdf(file_list, Snapshot, 'ColdGas') * 1.0e10 / Hubble_h
+    MetalsColdGas = read_hdf(file_list, Snapshot, 'MetalsColdGas') * 1.0e10 / Hubble_h
+    MetalsEjectedMass = read_hdf(file_list, Snapshot, 'MetalsEjectedMass') * 1.0e10 / Hubble_h
+    HotGas = read_hdf(file_list, Snapshot, 'HotGas') * 1.0e10 / Hubble_h
+    MetalsHotGas = read_hdf(file_list, Snapshot, 'MetalsHotGas') * 1.0e10 / Hubble_h
+    EjectedMass = read_hdf(file_list, Snapshot, 'EjectedMass') * 1.0e10 / Hubble_h
+    CGMgas = read_hdf(file_list, Snapshot, 'CGMgas') * 1.0e10 / Hubble_h
+    MetalsCGMgas = read_hdf(file_list, Snapshot, 'MetalsCGMgas') * 1.0e10 / Hubble_h
 
-    IntraClusterStars = read_hdf(input_file, Snapshot, 'IntraClusterStars') * 1.0e10 / Hubble_h
-    DiskRadius = read_hdf(input_file, Snapshot, 'DiskRadius')
-    BulgeRadius = read_hdf(input_file, Snapshot, 'BulgeRadius')
-    MergerBulgeRadius = read_hdf(input_file, Snapshot, 'MergerBulgeRadius')
-    InstabilityBulgeRadius = read_hdf(input_file, Snapshot, 'InstabilityBulgeRadius')
-    MergerBulgeMass = read_hdf(input_file, Snapshot, 'MergerBulgeMass') * 1.0e10 / Hubble_h
-    InstabilityBulgeMass = read_hdf(input_file, Snapshot, 'InstabilityBulgeMass') * 1.0e10 / Hubble_h
+    IntraClusterStars = read_hdf(file_list, Snapshot, 'IntraClusterStars') * 1.0e10 / Hubble_h
+    DiskRadius = read_hdf(file_list, Snapshot, 'DiskRadius')
+    BulgeRadius = read_hdf(file_list, Snapshot, 'BulgeRadius')
+    MergerBulgeRadius = read_hdf(file_list, Snapshot, 'MergerBulgeRadius')
+    InstabilityBulgeRadius = read_hdf(file_list, Snapshot, 'InstabilityBulgeRadius')
+    MergerBulgeMass = read_hdf(file_list, Snapshot, 'MergerBulgeMass') * 1.0e10 / Hubble_h
+    InstabilityBulgeMass = read_hdf(file_list, Snapshot, 'InstabilityBulgeMass') * 1.0e10 / Hubble_h
 
-    H2gas = read_hdf(input_file, Snapshot, 'H2gas') * 1.0e10 / Hubble_h
-    H1gas = read_hdf(input_file, Snapshot, 'H1gas') * 1.0e10 / Hubble_h
-    Vvir = read_hdf(input_file, Snapshot, 'Vvir')
-    Vmax = read_hdf(input_file, Snapshot, 'Vmax')
-    Rvir = read_hdf(input_file, Snapshot, 'Rvir')
-    SfrDisk = read_hdf(input_file, Snapshot, 'SfrDisk')
-    SfrBulge = read_hdf(input_file, Snapshot, 'SfrBulge')
+    H2gas = read_hdf(file_list, Snapshot, 'H2gas') * 1.0e10 / Hubble_h
+    H1gas = read_hdf(file_list, Snapshot, 'H1gas') * 1.0e10 / Hubble_h
+    Vvir = read_hdf(file_list, Snapshot, 'Vvir')
+    Vmax = read_hdf(file_list, Snapshot, 'Vmax')
+    Rvir = read_hdf(file_list, Snapshot, 'Rvir')
+    SfrDisk = read_hdf(file_list, Snapshot, 'SfrDisk')
+    SfrBulge = read_hdf(file_list, Snapshot, 'SfrBulge')
 
-    CentralGalaxyIndex = read_hdf(input_file, Snapshot, 'CentralGalaxyIndex')
-    Type = read_hdf(input_file, Snapshot, 'Type')
-    Posx = read_hdf(input_file, Snapshot, 'Posx')
-    Posy = read_hdf(input_file, Snapshot, 'Posy')
-    Posz = read_hdf(input_file, Snapshot, 'Posz')
+    CentralGalaxyIndex = read_hdf(file_list, Snapshot, 'CentralGalaxyIndex')
+    Type = read_hdf(file_list, Snapshot, 'Type')
+    Posx = read_hdf(file_list, Snapshot, 'Posx')
+    Posy = read_hdf(file_list, Snapshot, 'Posy')
+    Posz = read_hdf(file_list, Snapshot, 'Posz')
 
-    OutflowRate = read_hdf(input_file, Snapshot, 'OutflowRate')
-
-    MassLoading = read_hdf(input_file, Snapshot, 'MassLoading')
-
+    OutflowRate = read_hdf(file_list, Snapshot, 'OutflowRate')
+    MassLoading = read_hdf(file_list, Snapshot, 'MassLoading')
+    Cooling = read_hdf(file_list, Snapshot, 'Cooling')
+    Regime = read_hdf(file_list, Snapshot, 'Regime')
 
     w = np.where(StellarMass > 1.0e10)[0]
     print('Number of galaxies read:', len(StellarMass))
     print('Galaxies more massive than 10^10 h-1 Msun:', len(w), '\n')
 
-    Cooling = read_hdf(input_file, Snapshot, 'Cooling')
-
     Tvir = 35.9 * (Vvir)**2  # in Kelvin
     Tmax = 2.5e5  # K, corresponds to Vvir ~52.7 km/s
-
-    Regime = read_hdf(input_file, Snapshot, 'Regime')
 
 # --------------------------------------------------------
 
@@ -711,11 +721,9 @@ if __name__ == '__main__':
 
     w = np.where((Type == 0) & (ColdGas / (StellarMass + ColdGas) > 0.1) & (StellarMass > 1.0e8))[0]
     if(len(w) > dilute): w = sample(list(w), dilute)
-
-    ColdDust = read_hdf(input_file, Snapshot, 'ColdDust') * 1.0e10 / Hubble_h
     
     mass = np.log10(StellarMass[w])
-    Z = np.log10((MetalsColdGas[w] + ColdDust[w]) / ColdGas[w] / 0.02) + 9.0  # Convert to 12 + log(O/H) scale, assuming solar metallicity of 0.02 and that all metals are oxygen (for simplicity)    
+    Z = np.log10((MetalsColdGas[w]) / ColdGas[w] / 0.02) + 9.0  # Convert to 12 + log(O/H) scale, assuming solar metallicity of 0.02 and that all metals are oxygen (for simplicity)    
     plt.scatter(mass, Z, marker='x', s=1, c='gray', alpha=0.9, label='Model galaxies')
 
     # Tremonti et al. 2004 - the primary observational reference
