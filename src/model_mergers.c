@@ -30,9 +30,10 @@ double estimate_merging_time(const int sat_halo, const int mother_halo, const in
 
     if(SatelliteMass > 0.0 && coulomb > 0.0 && halos[sat_halo].Len >= MinNumPartSatHalo) {
         if (run_params->DarkSAGEOn == 1 || run_params->DustOn == 1 || run_params->CGMrecipeOn == 1
-            || run_params->FIREmodeOn == 1 || run_params->CGMrecipeOn == 1 || run_params->FeedbackFreeModeOn == 1)
+            || run_params->FIREmodeOn == 1 || run_params->FeedbackFreeModeOn == 1)
         {
-            // DarkSAGE: use the satellite's infall Vvir instead of the host's Vvir for a more accurate timescale estimate
+            // New Physics / DarkSAGE: Drop the legacy 2.0 multiplier to speed up 
+            // dynamical friction, allowing satellites to merge before tidal disruption (fixes excessive ICL and suprisingly bulge/disk fraction).
             mergtime = 1.17 * SatelliteRadius * SatelliteRadius * get_virial_velocity(mother_halo, halos, run_params) / (coulomb * run_params->G * SatelliteMass);
         }
         else
