@@ -51,6 +51,7 @@ H2DiskAreaOption      2   %0: π*r_s²; 1: π*(3*r_s)² (default); 2: 2π*r_s² 
 SupernovaRecipeOn     1   %0: switch off; 1: original Croton et al. 2016
 ReionizationOn        1   %0: switch off
 DiskInstabilityOn     1   %0: switch off; 1: bulge and BH growth through instabilities w. instability starbursts
+
 CGMrecipeOn           1   %0: switch off
 FIREmodeOn            1   %0: switch off
 FeedbackFreeModeOn    1   %0: switch off
