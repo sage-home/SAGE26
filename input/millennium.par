@@ -76,7 +76,7 @@ QuasarModeEfficiency    0.005   %AGN quasar mode wind heating efficiency (AGNrec
 BlackHoleGrowthRate     0.015 %fraction of cold gas added to the BH during mergers (AGNrecipeOn>0)
 
 ThreshMajorMerger       0.3   %major merger when mass ratio greater than this
-ThresholdSatDisruption  0.5   %Mvir-to-baryonic mass ratio threshold for satellite merger or disruption
+ThresholdSatDisruption  1.0   %Mvir-to-baryonic mass ratio threshold for satellite merger or disruption
 
 Yield                   0.025 %fraction of SF mass produced as metals
 RecycleFraction         0.43  %fraction of SF mass instantaneously recycled back to cold
