@@ -856,7 +856,7 @@ void update_from_feedback(const int p, const int centralgal, double reheated_mas
         if(run_params->CGMrecipeOn == 1) {
             if(galaxies[centralgal].Regime == 0) {
                 // CGM-regime: Cold --> CGM --> Ejected
-                
+
                 // Add reheated gas to CGM
                 galaxies[centralgal].CGMgas += reheated_mass;
                 galaxies[centralgal].MetalsCGMgas += metallicity * reheated_mass;
@@ -867,15 +867,21 @@ void update_from_feedback(const int p, const int centralgal, double reheated_mas
                 }
                 const double metallicityCGM = get_metallicity(galaxies[centralgal].CGMgas, galaxies[centralgal].MetalsCGMgas);
 
+                // FIX 2.1: Bounds check on metals to prevent floating-point precision issues
+                double metalsCGM_to_eject = metallicityCGM * ejected_mass;
+                if(metalsCGM_to_eject > galaxies[centralgal].MetalsCGMgas) {
+                    metalsCGM_to_eject = galaxies[centralgal].MetalsCGMgas;
+                }
+
                 // Eject from CGM to EjectedMass
                 galaxies[centralgal].CGMgas -= ejected_mass;
-                galaxies[centralgal].MetalsCGMgas -= metallicityCGM * ejected_mass;
+                galaxies[centralgal].MetalsCGMgas -= metalsCGM_to_eject;
                 galaxies[centralgal].EjectedMass += ejected_mass;
-                galaxies[centralgal].MetalsEjectedMass += metallicityCGM * ejected_mass;
+                galaxies[centralgal].MetalsEjectedMass += metalsCGM_to_eject;
 
             } else {
                 // Hot-ICM-regime: Cold --> HotGas --> Ejected
-                
+
                 // Add reheated gas to HotGas
                 galaxies[centralgal].HotGas += reheated_mass;
                 galaxies[centralgal].MetalsHotGas += metallicity * reheated_mass;
@@ -886,15 +892,21 @@ void update_from_feedback(const int p, const int centralgal, double reheated_mas
                 }
                 const double metallicityHot = get_metallicity(galaxies[centralgal].HotGas, galaxies[centralgal].MetalsHotGas);
 
+                // FIX 2.1: Bounds check on metals to prevent floating-point precision issues
+                double metalsHot_to_eject = metallicityHot * ejected_mass;
+                if(metalsHot_to_eject > galaxies[centralgal].MetalsHotGas) {
+                    metalsHot_to_eject = galaxies[centralgal].MetalsHotGas;
+                }
+
                 // Eject from HotGas to EjectedMass
                 galaxies[centralgal].HotGas -= ejected_mass;
-                galaxies[centralgal].MetalsHotGas -= metallicityHot * ejected_mass;
+                galaxies[centralgal].MetalsHotGas -= metalsHot_to_eject;
                 galaxies[centralgal].EjectedMass += ejected_mass;
-                galaxies[centralgal].MetalsEjectedMass += metallicityHot * ejected_mass;
+                galaxies[centralgal].MetalsEjectedMass += metalsHot_to_eject;
             }
         } else {
             // Original SAGE behavior: Cold --> HotGas --> Ejected
-            
+
             // Add reheated gas to HotGas
             galaxies[centralgal].HotGas += reheated_mass;
             galaxies[centralgal].MetalsHotGas += metallicity * reheated_mass;
@@ -905,11 +917,17 @@ void update_from_feedback(const int p, const int centralgal, double reheated_mas
             }
             const double metallicityHot = get_metallicity(galaxies[centralgal].HotGas, galaxies[centralgal].MetalsHotGas);
 
+            // FIX 2.1: Bounds check on metals to prevent floating-point precision issues
+            double metalsHot_to_eject = metallicityHot * ejected_mass;
+            if(metalsHot_to_eject > galaxies[centralgal].MetalsHotGas) {
+                metalsHot_to_eject = galaxies[centralgal].MetalsHotGas;
+            }
+
             // Eject from HotGas to EjectedMass
             galaxies[centralgal].HotGas -= ejected_mass;
-            galaxies[centralgal].MetalsHotGas -= metallicityHot * ejected_mass;
+            galaxies[centralgal].MetalsHotGas -= metalsHot_to_eject;
             galaxies[centralgal].EjectedMass += ejected_mass;
-            galaxies[centralgal].MetalsEjectedMass += metallicityHot * ejected_mass;
+            galaxies[centralgal].MetalsEjectedMass += metalsHot_to_eject;
         }
 
         galaxies[p].OutflowRate += reheated_mass;
