@@ -637,9 +637,15 @@ void disrupt_satellite_to_ICS(const int centralgal, const int gal, struct GALAXY
     // FractionDisruptedToICS = 0.5 means half to ICS, half to BCG
     const double frac_to_ICS = run_params->FractionDisruptedToICS;
     const double frac_to_BCG = 1.0 - frac_to_ICS;
+    const double new_ICS_from_stripping = frac_to_ICS * galaxies[gal].StellarMass;
 
-    galaxies[centralgal].ICS += frac_to_ICS * galaxies[gal].StellarMass;
+    galaxies[centralgal].ICS += new_ICS_from_stripping;
     galaxies[centralgal].MetalsICS += frac_to_ICS * galaxies[gal].MetalsStellarMass;
+
+    // All stellar disruptions credit the disruption channel.
+    // Former group centrals carrying ICS are handled in infall_recipe (where their ICS
+    // is still visible before zeroing) and credited to ICS_accrete there.
+    galaxies[centralgal].ICS_disrupt += new_ICS_from_stripping;
 
     // Add remainder to BCG bulge (accreted onto outer envelope)
     galaxies[centralgal].StellarMass += frac_to_BCG * galaxies[gal].StellarMass;

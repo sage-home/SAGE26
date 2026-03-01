@@ -60,6 +60,8 @@ void init_galaxy(const int p, const int halonr, int *galaxycounter, const struct
     }
     
     galaxies[p].ICS = 0.0;
+    galaxies[p].ICS_disrupt = 0.0;
+    galaxies[p].ICS_accrete = 0.0;
     galaxies[p].CGMgas = 0.0;
     galaxies[p].H2gas = 0.0;
     galaxies[p].H1gas = 0.0;

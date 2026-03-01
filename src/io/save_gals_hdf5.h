@@ -59,6 +59,8 @@ struct HDF5_GALAXY_OUTPUT
     float *EjectedMass;
     float *BlackHoleMass;
     float *ICS;
+    float *ICS_disrupt;
+    float *ICS_accrete;
     float *H2gas;
     float *H1gas;
 

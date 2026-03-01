@@ -130,6 +130,8 @@ struct GALAXY
     float EjectedMass;
     float BlackHoleMass;
     float ICS;
+    float ICS_disrupt;   /* ICS from tidal disruption of pure field satellites (no prior ICS) */
+    float ICS_accrete;    /* ICS accreted from former group centrals that already carried ICS */
     float CGMgas;
     float H2gas;
     float H1gas;

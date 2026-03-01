@@ -49,8 +49,8 @@ KMT09_DIR = './output/millennium_kmt09/'
 K13_DIR = './output/millennium_k13/'
 MINIUCHUU_DIR = './output/miniuchuu/'
 MODEL_FILE = 'model_0.hdf5'
-SNAPSHOT = 'Snap_63'
 OBS_DIR = './data/'
+SNAPSHOT = 'Snap_63'
 
 # Simulation parameters
 HUBBLE_H = 0.73
