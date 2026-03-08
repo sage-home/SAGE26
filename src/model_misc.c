@@ -55,7 +55,7 @@ void init_galaxy(const int p, const int halonr, int *galaxycounter, const struct
     galaxies[p].BlackHoleMass = 0.0;
     
     // AGNrecipeOn==4: Seed black holes in halos with Mvir > 10^10 Msun/h
-    if(run_params->AGNrecipeOn == 4 && galaxies[p].Mvir > 10.0) {
+    if(run_params->AGNrecipeOn == 4 && galaxies[p].Mvir > 1.0) {
         galaxies[p].BlackHoleMass = 1.0e-6;  // 10^4 Msun/h in units of 10^10 Msun/h
     }
     
@@ -435,9 +435,15 @@ void determine_and_store_ffb_regime(const int ngal, const double Zcurr, struct G
         const double stellar_mass = galaxies[p].StellarMass;
 
         // Massive galaxies (>= 10^12 M☉) are never FFB
-        const double stellar_mass_threshold = 100.0;  // 10^12 M☉ in code units
-        if(stellar_mass >= stellar_mass_threshold) {
-            galaxies[p].FFBRegime = 0;  // Normal halo - too massive for FFB
+        // const double stellar_mass_threshold = 100.0;  // 10^12 M☉ in code units
+        // if(stellar_mass >= stellar_mass_threshold) {
+        //     galaxies[p].FFBRegime = 0;  // Normal halo - too massive for FFB
+        //     continue;
+        // }
+
+        // Only CGM regime halos can be FFB, so we check that first
+        if(galaxies[p].Regime == 1) {
+            galaxies[p].FFBRegime = 0;  // Normal halo - in hot CGM regime, not eligible for FFB
             continue;
         }
 
