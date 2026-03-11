@@ -459,6 +459,9 @@ double cooling_recipe_cgm(const int gal, const double dt, struct GALAXY *galaxie
     // Cooling function (erg cm^3 s^-1)
     double lambda = get_metaldependent_cooling_rate(log10(temp), logZ);
 
+    if(lambda <= 0.0) {
+        return 0.0;
+    }
 
     // Convert CGM mass and radius to CGS
     const double CGMgas_cgs = galaxies[gal].CGMgas * 1e10 * SOLAR_MASS / run_params->Hubble_h; // g
@@ -484,6 +487,10 @@ double cooling_recipe_cgm(const int gal, const double dt, struct GALAXY *galaxie
     // Get density at the cooling radius
     const double mass_density_cgs = cgm_density_at_radius(r_cool_cgs, CGMgas_cgs, Rvir_cgs,
                                                            Mvir_Msun, z, profile_type);
+
+    if(mass_density_cgs <= 0.0) {
+        return 0.0;
+    }
 
     // Store r_cool / R_vir for diagnostics
     galaxies[gal].RcoolToRvir = r_cool_cgs / Rvir_cgs;
@@ -662,8 +669,11 @@ double cooling_recipe_regime_aware(const int gal, const double dt, struct GALAXY
         galaxies[gal].MetalsCGMgas -= metallicity * cgm_cooling;
     }
 
-    // Apply HotGas cooling
+    // Apply HotGas cooling (clamp to available HotGas after AGN heating)
     if(hot_cooling > 0.0) {
+        if(hot_cooling > galaxies[gal].HotGas) {
+            hot_cooling = galaxies[gal].HotGas;
+        }
         const double metallicity = get_metallicity(galaxies[gal].HotGas, galaxies[gal].MetalsHotGas);
         galaxies[gal].ColdGas += hot_cooling;
         galaxies[gal].MetalsColdGas += metallicity * hot_cooling;
