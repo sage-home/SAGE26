@@ -370,7 +370,7 @@ void starformation_and_feedback(const int p, const int centralgal, const double 
             // 5. Calculate SFR
             if (galaxies[p].H2gas > 0.0 && tdyn > 0.0) {
                 // SFR = M_H2 / t_depletion
-                
+                // Using  the dynamical time as a proxy for depletion time, scaled by efficiency, as per Xie et al. 2017
                 // STRICT XIE 2017:
                 strdot = run_params->SfrEfficiency * galaxies[p].H2gas / tdyn;
             } else {

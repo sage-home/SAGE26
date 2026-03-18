@@ -45,54 +45,52 @@ BoxSize         62.5 % Size of the simulation box in Mpc/h.
 %----- SAGE recipe options ----------------
 %------------------------------------------
 
-SFprescription        1   %0: original Croton et al. 2006; 1: BR06 H2 Stars; 2: Somerville et al. 2025 SFR; 3: Somerville et al. 2025 SFR + H2; 4: KD12 H2 Stars; 5: KMT09; 6: K13; 7: GD14
-AGNrecipeOn           2   %0: switch off; 1: empirical model; 2: Bondi-Hoyle model; 3: cold cloud accretion model
-H2DiskAreaOption      2   %0: π*r_s²; 1: π*(3*r_s)² (default); 2: 2π*r_s² (central Σ₀)
-SupernovaRecipeOn     1   %0: switch off; 1: original Croton et al. 2016
-ReionizationOn        1   %0: switch off
-DiskInstabilityOn     1   %0: switch off; 1: bulge and BH growth through instabilities w. instability starbursts
+SFprescription              1   %0: original Croton et al. 2006; 1: BR06 H2 Stars; 2: Somerville et al. 2025 SFR; 3: Somerville et al. 2025 SFR + H2; 4: KD12 H2 Stars; 5: KMT09; 6: K13; 7: GD14
+AGNrecipeOn                 2   %0: switch off; 1: empirical model; 2: Bondi-Hoyle model; 3: cold cloud accretion model
+H2DiskAreaOption            2   %0: π*r_s²; 1: π*(3*r_s)² (default); 2: 2π*r_s² (central Σ₀)
+SupernovaRecipeOn           1   %0: switch off; 1: original Croton et al. 2016
+ReionizationOn              1   %0: switch off
+DiskInstabilityOn           1   %0: switch off; 1: bulge and BH growth through instabilities w. instability starbursts
 
-CGMrecipeOn           1   %0: switch off
-CGMDensityProfile     0   %0: uniform; 1: NFW; 2: beta-profile (β=2/3)
-FIREmodeOn            1   %0: switch off
-FeedbackFreeModeOn    1   %0: switch off
-BulgeSizeOn           3   %0: switch off; 1: Shen eq. 33; 2: Shen eq. 32; 3: Tonini
-SaveFullSFH           1   %0: switch off
-TrackICSAssembly      1   %0: switch off; 1: track ICS_disrupt and ICS_accrete
+CGMrecipeOn                 1   %0: switch off
+CGMDensityProfile           0   %0: uniform; 1: NFW; 2: beta-profile (β=2/3)
+FIREmodeOn                  1   %0: switch off
+FeedbackFreeModeOn          1   %0: switch off
+BulgeSizeOn                 3   %0: switch off; 1: Shen eq. 33; 2: Shen eq. 32; 3: Tonini
+SaveFullSFH                 1   %0: switch off
+TrackICSAssembly            1   %0: switch off; 1: track ICS_disrupt and ICS_accrete
 
 %------------------------------------------
 %----- SAGE model parameters --------------
 %------------------------------------------
 
-SfrEfficiency           0.03  %efficiency of SF;
-FFBMaxEfficiency        0.2   %0.2 fits observations best, 1.0 is theoretical maximum
+SfrEfficiency               0.03    %efficiency of SF;
+FFBMaxEfficiency            0.2     %0.2 fits observations best, 1.0 is theoretical maximum
 
-RedshiftPowerLawExponent    1.25   %alpha for (1+z)^alpha in mass loading calculation (FIREmodeOn=1)
+RedshiftPowerLawExponent    1.25    %alpha for (1+z)^alpha in mass loading calculation (FIREmodeOn=1)
 
-FeedbackReheatingEpsilon    2.9   %mass of cold gas reheated due to SF (see Martin 1999) (SupernovaRecipeOn=1)
-FeedbackEjectionEfficiency  0.5   %mixing efficiency of SN energy with hot gas to unbind and eject some (SupernovaRecipeOn=1)
+FeedbackReheatingEpsilon    2.9     %mass of cold gas reheated due to SF (see Martin 1999) (SupernovaRecipeOn=1)
+FeedbackEjectionEfficiency  0.5     %mixing efficiency of SN energy with hot gas to unbind and eject some (SupernovaRecipeOn=1)
 
-ReIncorporationFactor   0.15    %fraction of ejected mass reincorporated per dynamical time to hot
+ReIncorporationFactor       0.15    %fraction of ejected mass reincorporated per dynamical time to hot
 
-RadioModeEfficiency     0.08  %AGN radio mode efficiency (AGNrecipeOn=2)
-QuasarModeEfficiency    0.005   %AGN quasar mode wind heating efficiency (AGNrecipeOn>0)
-BlackHoleGrowthRate     0.015 %fraction of cold gas added to the BH during mergers (AGNrecipeOn>0)
+RadioModeEfficiency         0.08    %AGN radio mode efficiency (AGNrecipeOn=2)
+QuasarModeEfficiency        0.005   %AGN quasar mode wind heating efficiency (AGNrecipeOn>0)
+BlackHoleGrowthRate         0.015   %fraction of cold gas added to the BH during mergers (AGNrecipeOn>0)
 
-ThreshMajorMerger       0.3   %major merger when mass ratio greater than this
-ThresholdSatDisruption  1.0   %Mvir-to-baryonic mass ratio threshold for satellite merger or disruption
-FractionDisruptedToICS  0.7   %fraction of disrupted satellite stellar mass to ICS (rest goes to BCG); 1.0 = original behavior
+ThreshMajorMerger           0.3     %major merger when mass ratio greater than this
+ThresholdSatDisruption      1.0     %Mvir-to-baryonic mass ratio threshold for satellite merger or disruption
+FractionDisruptedToICS      0.7     %fraction of disrupted satellite stellar mass to ICS (rest goes to BCG); 1.0 = original behavior
 
-Yield                   0.025 %fraction of SF mass produced as metals
-RecycleFraction         0.43  %fraction of SF mass instantaneously recycled back to cold
-FracZleaveDisk          0.0   %fraction of metals produced directly to hot component
+Yield                       0.025   %fraction of SF mass produced as metals
+RecycleFraction             0.43    %fraction of SF mass instantaneously recycled back to cold
+FracZleaveDisk              0.0     %fraction of metals produced directly to hot component
 
-Reionization_z0         8.0   %these parameter choices give the best fit to Genedin (2000)...
-Reionization_zr         7.0   %using the analytic fit of Kravtsov et al. 2004 (ReionizationOn=1)
+Reionization_z0             8.0     %these parameter choices give the best fit to Genedin (2000)...
+Reionization_zr             7.0     %using the analytic fit of Kravtsov et al. 2004 (ReionizationOn=1)
 
-EnergySN                1.0e51  %energy per supernova
-EtaSN                   5.0e-3  %supernova efficiency
-
-
+EnergySN                    1.0e51  %energy per supernova
+EtaSN                       5.0e-3  %supernova efficiency
 
 %------------------------------------------
 %----- Other code-related information -----
