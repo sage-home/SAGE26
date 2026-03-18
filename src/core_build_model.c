@@ -225,6 +225,8 @@ int join_galaxies_of_progenitors(const int halonr, const int ngalstart, int *gal
                     galaxies[ngal].Cooling = 0.0;
                     galaxies[ngal].Heating = 0.0;
                     galaxies[ngal].QuasarModeBHaccretionMass = 0.0;
+                    galaxies[ngal].RadioModeBHaccretionMass = 0.0;
+                    galaxies[ngal].BHMergerMass = 0.0;
                     galaxies[ngal].OutflowRate = 0.0;
 
                     for(int step = 0; step < STEPS; step++) {

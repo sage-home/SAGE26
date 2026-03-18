@@ -277,6 +277,8 @@ if __name__ == '__main__':
     Tvir = 35.9 * (Vvir)**2  # in Kelvin
     Tmax = 2.5e5  # K, corresponds to Vvir ~52.7 km/s
 
+    QuasarAccretionMass = read_hdf(file_list, Snapshot, 'QuasarModeBHaccretionMass') * 1.0e10 / Hubble_h
+
 # --------------------------------------------------------
 
     print('Plotting the stellar mass function, divided by sSFR')

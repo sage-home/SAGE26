@@ -333,7 +333,13 @@ void add_galaxies_together(const int t, const int p, struct GALAXY *galaxies, co
     galaxies[t].MetalsICS += galaxies[p].MetalsICS;
 
     galaxies[t].BlackHoleMass += galaxies[p].BlackHoleMass;
+    galaxies[t].BHMergerMass += galaxies[p].BlackHoleMass;
     update_bh_spin_parameter(t, galaxies, run_params);
+
+    // sum BH growth tracking fields from satellite
+    galaxies[t].QuasarModeBHaccretionMass += galaxies[p].QuasarModeBHaccretionMass;
+    galaxies[t].RadioModeBHaccretionMass += galaxies[p].RadioModeBHaccretionMass;
+    galaxies[t].BHMergerMass += galaxies[p].BHMergerMass;
 
     galaxies[t].CGMgas += galaxies[p].CGMgas;
     galaxies[t].MetalsCGMgas += galaxies[p].MetalsCGMgas;

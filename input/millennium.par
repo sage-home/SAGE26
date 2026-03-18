@@ -47,9 +47,9 @@ BoxSize         62.5 % Size of the simulation box in Mpc/h.
 
 SFprescription        1   %0: original Croton et al. 2006; 1: BR06 H2 Stars; 2: Somerville et al. 2025 SFR; 3: Somerville et al. 2025 SFR + H2; 4: KD12 H2 Stars; 5: KMT09; 6: K13; 7: GD14
 AGNrecipeOn           2   %0: switch off; 1: empirical model; 2: Bondi-Hoyle model; 3: cold cloud accretion model
-BHSeedingOn           1   %0: switch off
-BHSpinModelOn         1   %0: off; 1: Volonteri+2007 a(M_BH) relation
-TorqueAccretionOn     1   %0: off; 1: Hopkins & Quataert 2011 torque-driven BH accretion
+BHSeedingOn           0   %0: switch off
+BHSpinModelOn         0   %0: off; 1: Volonteri+2007 a(M_BH) relation
+TorqueAccretionOn     0   %0: off; 1: Hopkins & Quataert 2011 torque-driven BH accretion
 H2DiskAreaOption      2   %0: π*r_s²; 1: π*(3*r_s)² (default); 2: 2π*r_s² (central Σ₀)
 SupernovaRecipeOn     1   %0: switch off; 1: original Croton et al. 2016
 ReionizationOn        1   %0: switch off

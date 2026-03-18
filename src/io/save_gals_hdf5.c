@@ -18,7 +18,7 @@
 #define NUM_OUTPUT_FIELDS 2
 #pragma message "Using SAGE in MCMC mode (will only write " STR(NUM_OUTPUT_FIELDS) " fields into the hdf5 file)"
 #else
-#define NUM_OUTPUT_FIELDS 78
+#define NUM_OUTPUT_FIELDS 80
 #endif
 
 #define NUM_GALS_PER_BUFFER 8192
@@ -420,6 +420,8 @@ int32_t initialize_hdf5_galaxy_files(const int filenr, struct save_info *save_in
         MALLOC_GALAXY_OUTPUT_INNER_ARRAY(snap_idx, Cooling);
         MALLOC_GALAXY_OUTPUT_INNER_ARRAY(snap_idx, Heating);
         MALLOC_GALAXY_OUTPUT_INNER_ARRAY(snap_idx, QuasarModeBHaccretionMass);
+        MALLOC_GALAXY_OUTPUT_INNER_ARRAY(snap_idx, RadioModeBHaccretionMass);
+        MALLOC_GALAXY_OUTPUT_INNER_ARRAY(snap_idx, BHMergerMass);
         MALLOC_GALAXY_OUTPUT_INNER_ARRAY(snap_idx, TimeOfLastMajorMerger);
         MALLOC_GALAXY_OUTPUT_INNER_ARRAY(snap_idx, TimeOfLastMinorMerger);
         MALLOC_GALAXY_OUTPUT_INNER_ARRAY(snap_idx, OutflowRate);
@@ -739,6 +741,8 @@ int32_t finalize_hdf5_galaxy_files(const struct forest_info *forest_info, struct
         FREE_GALAXY_OUTPUT_INNER_ARRAY(snap_idx, Cooling);
         FREE_GALAXY_OUTPUT_INNER_ARRAY(snap_idx, Heating);
         FREE_GALAXY_OUTPUT_INNER_ARRAY(snap_idx, QuasarModeBHaccretionMass);
+        FREE_GALAXY_OUTPUT_INNER_ARRAY(snap_idx, RadioModeBHaccretionMass);
+        FREE_GALAXY_OUTPUT_INNER_ARRAY(snap_idx, BHMergerMass);
         FREE_GALAXY_OUTPUT_INNER_ARRAY(snap_idx, TimeOfLastMajorMerger);
         FREE_GALAXY_OUTPUT_INNER_ARRAY(snap_idx, TimeOfLastMinorMerger);
         FREE_GALAXY_OUTPUT_INNER_ARRAY(snap_idx, OutflowRate);
@@ -890,7 +894,7 @@ int32_t generate_field_metadata(char (*field_names)[MAX_STRING_LEN], char (*fiel
                                                          "Vmax", "VelDisp", "ColdGas", "StellarMass", "BulgeMass", "HotGas", "EjectedMass",
                                                          "BlackHoleMass", "BHSpin", "IntraClusterStars", "MetalsColdGas", "MetalsStellarMass", "MetalsBulgeMass",
                                                          "MetalsHotGas", "MetalsEjectedMass", "MetalsIntraClusterStars", "SfrDisk", "SfrBulge", "SfrDiskZ",
-                                                         "SfrBulgeZ", "DiskRadius", "BulgeRadius", "MergerBulgeRadius", "InstabilityBulgeRadius", "MergerBulgeMass", "InstabilityBulgeMass", "Cooling", "Heating", "QuasarModeBHaccretionMass",
+                                                         "SfrBulgeZ", "DiskRadius", "BulgeRadius", "MergerBulgeRadius", "InstabilityBulgeRadius", "MergerBulgeMass", "InstabilityBulgeMass", "Cooling", "Heating", "QuasarModeBHaccretionMass", "RadioModeBHaccretionMass", "BHMergerMass",
                                                          "TimeOfLastMajorMerger", "TimeOfLastMinorMerger", "OutflowRate", "infallMvir",
                                                          "infallVvir", "infallVmax", "infallStellarMass", "Regime", "CGMgas", "MetalsCGMgas", "MassLoading", "H2gas", "H1gas",
                                                          "tcool", "tff", "tcool_over_tff", "tdeplete", "RcoolToRvir", "TimeOfInfall", "FFBRegime", "mdot_cool", "mdot_stream",
@@ -927,7 +931,9 @@ int32_t generate_field_metadata(char (*field_names)[MAX_STRING_LEN], char (*fiel
                                                                 "Bulge radius formed from mergers (classical bulge).", "Bulge radius formed from disk instabilities (pseudo-bulge).",
                                                                 "Mass of stars in the bulge formed from mergers.", "Mass of stars in the bulge formed from disk instabilities.",
                                                                 "Energy rate for gas cooling in the galaxy.", "Energy rate for gas heating in the galaxy.",
-                                                                "Mass that this galaxy's black hole accreted during the last time step.",
+                                                                "Cumulative mass accreted onto the black hole via quasar mode (mergers, torque, seed).",
+                                                                "Cumulative mass accreted onto the black hole via radio mode (hot gas / CGM).",
+                                                                "Cumulative black hole mass gained from BH-BH mergers (coalescence).",
                                                                 "Time since this galaxy had a major merger.", "Time since this galaxy had a minor merger.",
                                                                 "Rate at which cold gas is reheated to hot gas.",
                                                                 "Virial mass of this galaxy's halo at the previous timestep.",
@@ -957,7 +963,7 @@ int32_t generate_field_metadata(char (*field_names)[MAX_STRING_LEN], char (*fiel
                                                          "km/s", "km/s", "1.0e10 Msun/h", "1.0e10 Msun/h", "1.0e10 Msun/h", "1.0e10 Msun/h", "1.0e10 Msun/h",
                                                          "1.0e10 Msun/h", "Unitless", "1.0e10 Msun/h", "1.0e10 Msun/h", "1.0e10 Msun/h", "1.0e10 Msun/h",
                                                          "1.0e10 Msun/h", "1.0e10 Msun/h", "1.0e10 Msun/h", "Msun/yr", "Msun/yr", "Msun/yr",
-                                                         "Msun/yr", "Mpc/h", "Mpc/h", "Mpc/h", "Mpc/h", "1.0e10 Msun/h", "1.0e10 Msun/h", "erg/s", "erg/s", "1.0e10 Msun/h",
+                                                         "Msun/yr", "Mpc/h", "Mpc/h", "Mpc/h", "Mpc/h", "1.0e10 Msun/h", "1.0e10 Msun/h", "erg/s", "erg/s", "1.0e10 Msun/h", "1.0e10 Msun/h", "1.0e10 Msun/h",
                                                          "Myr", "Myr", "Msun/yr", "1.0e10 Msun/yr", "km/s", "km/s", "1.0e10 Msun/h", "Unitless", "1.0e10 Msun/h", "1.0e10 Msun/h", "Unitless", "1.0e10 Msun/h", "1.0e10 Msun/h",
                                                          "Myr", "Myr", "Unitless", "Myr", "Unitless", "Myr", "Unitless", "1.0e10 Msun/yr", "1.0e10 Msun/yr",
                                                          "1.0e10 Msun/h", "1.0e10 Msun/h"};
@@ -972,6 +978,7 @@ int32_t generate_field_metadata(char (*field_names)[MAX_STRING_LEN], char (*fiel
                                             H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT,
                                             H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT,
                                             H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT,
+                                            H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT,
                                             H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_INT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT,
                                             H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT, H5T_NATIVE_INT, H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT,
                                             H5T_NATIVE_FLOAT, H5T_NATIVE_FLOAT};
@@ -1123,6 +1130,8 @@ int32_t prepare_galaxy_for_hdf5_output(const struct GALAXY *g, struct save_info 
     }
 
     save_info->buffer_output_gals[output_snap_idx].QuasarModeBHaccretionMass[gals_in_buffer] = g->QuasarModeBHaccretionMass;
+    save_info->buffer_output_gals[output_snap_idx].RadioModeBHaccretionMass[gals_in_buffer] = g->RadioModeBHaccretionMass;
+    save_info->buffer_output_gals[output_snap_idx].BHMergerMass[gals_in_buffer] = g->BHMergerMass;
 
     save_info->buffer_output_gals[output_snap_idx].TimeOfLastMajorMerger[gals_in_buffer] = g->TimeOfLastMajorMerger * run_params->UnitTime_in_Megayears;
     save_info->buffer_output_gals[output_snap_idx].TimeOfLastMinorMerger[gals_in_buffer] = g->TimeOfLastMinorMerger * run_params->UnitTime_in_Megayears;
@@ -1335,6 +1344,8 @@ int32_t trigger_buffer_write(const int32_t snap_idx, const int32_t num_to_write,
     EXTEND_AND_WRITE_GALAXY_DATASET(Cooling);
     EXTEND_AND_WRITE_GALAXY_DATASET(Heating);
     EXTEND_AND_WRITE_GALAXY_DATASET(QuasarModeBHaccretionMass);
+    EXTEND_AND_WRITE_GALAXY_DATASET(RadioModeBHaccretionMass);
+    EXTEND_AND_WRITE_GALAXY_DATASET(BHMergerMass);
     EXTEND_AND_WRITE_GALAXY_DATASET(TimeOfLastMajorMerger);
     EXTEND_AND_WRITE_GALAXY_DATASET(TimeOfLastMinorMerger);
     EXTEND_AND_WRITE_GALAXY_DATASET(OutflowRate);
