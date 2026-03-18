@@ -98,8 +98,11 @@ struct HDF5_GALAXY_OUTPUT
     float *QuasarModeBHaccretionMass;
     float *MergerDrivenBHaccretionMass;
     float *InstabilityDrivenBHaccretionMass;
+    float *TorqueDrivenBHaccretionMass;
+    float *SeedModeBHaccretionMass;
     float *RadioModeBHaccretionMass;
     float *BHMergerMass;
+    float *BHSeedMass;
     float *TimeOfLastMajorMerger;
     float *TimeOfLastMinorMerger;
     float *OutflowRate;

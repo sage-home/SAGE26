@@ -219,12 +219,14 @@ int join_galaxies_of_progenitors(const int halonr, const int ngalstart, int *gal
                        halonr == halos[halonr].FirstHaloInFOFgroup &&
                        (galaxies[ngal].HotGas > 0.0 || galaxies[ngal].CGMgas > 0.0)) {
                         galaxies[ngal].BlackHoleMass = run_params->BHSeedMass;
+                        galaxies[ngal].BHSeedMass += run_params->BHSeedMass;
                         galaxies[ngal].BHSpin = 0.0;  // Seeds start with zero spin
                     }
 
                     galaxies[ngal].Cooling = 0.0;
                     galaxies[ngal].Heating = 0.0;
-                    // NOTE: QuasarModeBHaccretionMass, RadioModeBHaccretionMass, BHMergerMass
+                    // NOTE: QuasarModeBHaccretionMass, all sub-channel tracking fields,
+                    // RadioModeBHaccretionMass, BHMergerMass, BHSeedMass
                     // are cumulative and must NOT be reset each snapshot
                     galaxies[ngal].OutflowRate = 0.0;
 

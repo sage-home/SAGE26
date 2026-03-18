@@ -328,8 +328,11 @@ int32_t prepare_galaxy_for_output(struct GALAXY *g, struct GALAXY_OUTPUT *o, str
     o->QuasarModeBHaccretionMass = g->QuasarModeBHaccretionMass;
     o->MergerDrivenBHaccretionMass = g->MergerDrivenBHaccretionMass;
     o->InstabilityDrivenBHaccretionMass = g->InstabilityDrivenBHaccretionMass;
+    o->TorqueDrivenBHaccretionMass = g->TorqueDrivenBHaccretionMass;
+    o->SeedModeBHaccretionMass = g->SeedModeBHaccretionMass;
     o->RadioModeBHaccretionMass = g->RadioModeBHaccretionMass;
     o->BHMergerMass = g->BHMergerMass;
+    o->BHSeedMass = g->BHSeedMass;
 
     o->TimeOfLastMajorMerger = g->TimeOfLastMajorMerger * run_params->UnitTime_in_Megayears;
     o->TimeOfLastMinorMerger = g->TimeOfLastMinorMerger * run_params->UnitTime_in_Megayears;

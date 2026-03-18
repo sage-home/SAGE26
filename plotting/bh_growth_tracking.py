@@ -90,8 +90,11 @@ def main():
     QuasarMode = read_hdf(file_list, snap_num, 'QuasarModeBHaccretionMass') * 1.0e10 / Hubble_h
     MergerDriven = read_hdf(file_list, snap_num, 'MergerDrivenBHaccretionMass') * 1.0e10 / Hubble_h
     InstabilityDriven = read_hdf(file_list, snap_num, 'InstabilityDrivenBHaccretionMass') * 1.0e10 / Hubble_h
+    TorqueDriven = read_hdf(file_list, snap_num, 'TorqueDrivenBHaccretionMass') * 1.0e10 / Hubble_h
+    SeedModeAccretion = read_hdf(file_list, snap_num, 'SeedModeBHaccretionMass') * 1.0e10 / Hubble_h
     RadioMode = read_hdf(file_list, snap_num, 'RadioModeBHaccretionMass') * 1.0e10 / Hubble_h
     BHMerger = read_hdf(file_list, snap_num, 'BHMergerMass') * 1.0e10 / Hubble_h
+    BHSeedMass = read_hdf(file_list, snap_num, 'BHSeedMass') * 1.0e10 / Hubble_h
     StellarMass = read_hdf(file_list, snap_num, 'StellarMass') * 1.0e10 / Hubble_h
     BulgeMass = read_hdf(file_list, snap_num, 'BulgeMass') * 1.0e10 / Hubble_h
     Mvir = read_hdf(file_list, snap_num, 'Mvir') * 1.0e10 / Hubble_h
@@ -100,6 +103,15 @@ def main():
     if len(BlackHoleMass) == 0:
         print("No galaxies found!")
         sys.exit(1)
+
+    # Handle missing fields from older output files (default to zeros)
+    ngal = len(BlackHoleMass)
+    if len(TorqueDriven) == 0:
+        TorqueDriven = np.zeros(ngal)
+    if len(SeedModeAccretion) == 0:
+        SeedModeAccretion = np.zeros(ngal)
+    if len(BHSeedMass) == 0:
+        BHSeedMass = np.zeros(ngal)
 
     print(f"Total galaxies: {len(BlackHoleMass)}")
 
@@ -112,12 +124,13 @@ def main():
     print("VALIDATION: Channel sum vs BlackHoleMass")
     print("="*60)
 
-    # Growth budget: QuasarMode + RadioMode = BlackHoleMass
+    # Growth budget: QuasarMode + RadioMode + BHSeedMass = BlackHoleMass
     # BHMergerMass is a diagnostic (how much BH mass came via coalescence) but is NOT
     # part of the growth sum — mergers don't create new mass, they transfer it between
     # galaxies, and the satellite's growth history is already carried over in the
     # QuasarMode and RadioMode channel totals.
-    growth_sum = QuasarMode + RadioMode
+    # BHSeedMass is the initial seed mass placed when BHSeedingOn is enabled.
+    growth_sum = QuasarMode + RadioMode + BHSeedMass
     residual = BlackHoleMass - growth_sum
 
     # Only check galaxies with BHs
@@ -128,11 +141,14 @@ def main():
         frac_res = res / bh
 
         print(f"\nBlackHoleMass total:  {bh.sum():.6e} M_sun")
-        print(f"Growth sum total:     {gs.sum():.6e} M_sun  (QuasarMode + RadioMode)")
+        print(f"Growth sum total:     {gs.sum():.6e} M_sun  (QuasarMode + RadioMode + BHSeedMass)")
         print(f"  Quasar mode total:  {QuasarMode[bh_mask].sum():.6e} M_sun  ({100*QuasarMode[bh_mask].sum()/bh.sum():.1f}%)")
         print(f"    Merger-driven:    {MergerDriven[bh_mask].sum():.6e} M_sun  ({100*MergerDriven[bh_mask].sum()/bh.sum():.1f}%)")
         print(f"    Instability:      {InstabilityDriven[bh_mask].sum():.6e} M_sun  ({100*InstabilityDriven[bh_mask].sum()/bh.sum():.1f}%)")
+        print(f"    Torque-driven:    {TorqueDriven[bh_mask].sum():.6e} M_sun  ({100*TorqueDriven[bh_mask].sum()/bh.sum():.1f}%)")
+        print(f"    Seed-mode:        {SeedModeAccretion[bh_mask].sum():.6e} M_sun  ({100*SeedModeAccretion[bh_mask].sum()/bh.sum():.1f}%)")
         print(f"  Radio mode:         {RadioMode[bh_mask].sum():.6e} M_sun  ({100*RadioMode[bh_mask].sum()/bh.sum():.1f}%)")
+        print(f"  BH seed mass:       {BHSeedMass[bh_mask].sum():.6e} M_sun  ({100*BHSeedMass[bh_mask].sum()/bh.sum():.1f}%)")
         print(f"\n  BH-BH mergers:      {BHMerger[bh_mask].sum():.6e} M_sun  (diagnostic — mass received via coalescence)")
         print(f"\nResidual (BH - growth sum):  {res.sum():.6e} M_sun")
         print(f"\nPer-galaxy fractional residual (BH - growth sum) / BH:")
@@ -151,9 +167,9 @@ def main():
         print(f"\n{'='*60}")
         print("SUB-CHANNEL CONSISTENCY CHECK")
         print(f"{'='*60}")
-        print("Checking: MergerDriven + InstabilityDriven = QuasarModeBHaccretionMass")
+        print("Checking: MergerDriven + InstabilityDriven + TorqueDriven + SeedMode = QuasarModeBHaccretionMass")
 
-        quasar_sub = MergerDriven[bh_mask] + InstabilityDriven[bh_mask]
+        quasar_sub = MergerDriven[bh_mask] + InstabilityDriven[bh_mask] + TorqueDriven[bh_mask] + SeedModeAccretion[bh_mask]
         quasar_tot = QuasarMode[bh_mask]
         sub_residual = quasar_sub - quasar_tot
 
@@ -163,7 +179,7 @@ def main():
             sub_frac_res = sub_residual[has_quasar] / quasar_tot[has_quasar]
             print(f"\nGalaxies with QuasarMode > 0: {np.sum(has_quasar)}")
             print(f"  Absolute residual sum: {np.sum(np.abs(sub_residual[has_quasar])):.6e} M_sun")
-            print(f"  Per-galaxy fractional residual (Merger+Instab - Quasar) / Quasar:")
+            print(f"  Per-galaxy fractional residual (sub-channels - Quasar) / Quasar:")
             print(f"    Median: {np.median(sub_frac_res):.6f}")
             print(f"    Max:    {np.max(np.abs(sub_frac_res)):.6f}")
             print(f"    99th percentile: {np.percentile(np.abs(sub_frac_res), 99):.6f}")
@@ -172,7 +188,7 @@ def main():
             if np.sum(sub_bad) > 0:
                 print(f"\n  PASS/FAIL: WARNING — {np.sum(sub_bad)} galaxies have >1% sub-channel residual")
             else:
-                print(f"\n  PASS: MergerDriven + InstabilityDriven = QuasarMode for all galaxies (<1% residual)")
+                print(f"\n  PASS: All sub-channels sum to QuasarMode for all galaxies (<1% residual)")
         else:
             print(f"\n  No galaxies with QuasarMode accretion — skipping sub-channel check")
 
@@ -184,22 +200,31 @@ def main():
     if n_bh > 0:
         md = MergerDriven[bh_mask]
         id_ = InstabilityDriven[bh_mask]
+        td = TorqueDriven[bh_mask]
+        sm = SeedModeAccretion[bh_mask]
         rm = RadioMode[bh_mask]
         bm = BHMerger[bh_mask]
+        sd = BHSeedMass[bh_mask]
 
         has_md = md > 0
         has_id = id_ > 0
+        has_td = td > 0
+        has_sm = sm > 0
         has_rm = rm > 0
         has_bm = bm > 0
+        has_sd = sd > 0
 
         print(f"\nGalaxies with merger-driven accretion:      {np.sum(has_md)} ({100*np.sum(has_md)/n_bh:.1f}%)")
         print(f"Galaxies with instability-driven accretion: {np.sum(has_id)} ({100*np.sum(has_id)/n_bh:.1f}%)")
+        print(f"Galaxies with torque-driven accretion:      {np.sum(has_td)} ({100*np.sum(has_td)/n_bh:.1f}%)")
+        print(f"Galaxies with seed-mode accretion:          {np.sum(has_sm)} ({100*np.sum(has_sm)/n_bh:.1f}%)")
         print(f"Galaxies with radio mode accretion:         {np.sum(has_rm)} ({100*np.sum(has_rm)/n_bh:.1f}%)")
         print(f"Galaxies with BH-BH mergers:                {np.sum(has_bm)} ({100*np.sum(has_bm)/n_bh:.1f}%)")
+        print(f"Galaxies with BH seed mass:                 {np.sum(has_sd)} ({100*np.sum(has_sd)/n_bh:.1f}%)")
 
-        # Dominant growth channel per galaxy (excluding BH mergers as it's not a growth channel)
-        dominant = np.argmax(np.column_stack([md, id_, rm]), axis=1)
-        labels = ['Merger-driven', 'Instability-driven', 'Radio mode']
+        # Dominant growth channel per galaxy (excluding BH mergers and seed mass as they're not growth channels)
+        dominant = np.argmax(np.column_stack([md, id_, td, sm, rm]), axis=1)
+        labels = ['Merger-driven', 'Instability-driven', 'Torque-driven', 'Seed-mode', 'Radio mode']
         for i, lab in enumerate(labels):
             n = np.sum(dominant == i)
             print(f"  Dominant growth channel = {lab}: {n} ({100*n/n_bh:.1f}%)")
@@ -216,6 +241,8 @@ def main():
 
     md_frac_bins = np.zeros(len(bin_centres))
     id_frac_bins = np.zeros(len(bin_centres))
+    td_frac_bins = np.zeros(len(bin_centres))
+    sm_frac_bins = np.zeros(len(bin_centres))
     rm_frac_bins = np.zeros(len(bin_centres))
     bm_frac_bins = np.zeros(len(bin_centres))
 
@@ -225,16 +252,19 @@ def main():
             total = BlackHoleMass[bh_mask][in_bin].sum()
             md_frac_bins[i] = MergerDriven[bh_mask][in_bin].sum() / total
             id_frac_bins[i] = InstabilityDriven[bh_mask][in_bin].sum() / total
+            td_frac_bins[i] = TorqueDriven[bh_mask][in_bin].sum() / total
+            sm_frac_bins[i] = SeedModeAccretion[bh_mask][in_bin].sum() / total
             rm_frac_bins[i] = RadioMode[bh_mask][in_bin].sum() / total
             bm_frac_bins[i] = BHMerger[bh_mask][in_bin].sum() / total
 
     # Use grouped bars (not stacked) with log y-axis so small fractions are visible
-    bar_width = 0.11
-    offsets = [-1.5*bar_width, -0.5*bar_width, 0.5*bar_width, 1.5*bar_width]
-    for frac, offset, label, colour in zip([md_frac_bins, id_frac_bins, rm_frac_bins, bm_frac_bins],
+    n_channels = 6
+    bar_width = 0.08
+    offsets = [(i - (n_channels-1)/2) * bar_width for i in range(n_channels)]
+    for frac, offset, label, colour in zip([md_frac_bins, id_frac_bins, td_frac_bins, sm_frac_bins, rm_frac_bins, bm_frac_bins],
                                             offsets,
-                                            ['Merger-driven', 'Instability-driven', 'Radio mode', 'BH-BH mergers'],
-                                            ['#2196F3', '#9C27B0', '#FF5722', '#4CAF50']):
+                                            ['Merger-driven', 'Instability-driven', 'Torque-driven', 'Seed-mode', 'Radio mode', 'BH-BH mergers'],
+                                            ['#2196F3', '#9C27B0', '#FF9800', '#795548', '#FF5722', '#4CAF50']):
         mask = frac > 0
         if np.any(mask):
             ax.bar(bin_centres[mask] + offset, frac[mask], width=bar_width,
@@ -253,7 +283,7 @@ def main():
     print(f"  Saved: bh_growth_channels_by_mass{OutputFormat}")
 
     # -- Plot 2: BH mass vs channel contributions (scatter) --
-    fig, axes = plt.subplots(1, 4, figsize=(22, 5.5))
+    fig, axes = plt.subplots(1, 5, figsize=(27.5, 5.5))
 
     dilute = min(5000, n_bh)
     idx = np.random.choice(n_bh, size=dilute, replace=False) if n_bh > dilute else np.arange(n_bh)
@@ -261,13 +291,14 @@ def main():
     bh_plot = BlackHoleMass[bh_mask][idx]
     md_plot = MergerDriven[bh_mask][idx]
     id_plot = InstabilityDriven[bh_mask][idx]
+    td_plot = TorqueDriven[bh_mask][idx]
     rm_plot = RadioMode[bh_mask][idx]
     bm_plot = BHMerger[bh_mask][idx]
 
     for ax, channel, label, colour in zip(axes,
-                                           [md_plot, id_plot, rm_plot, bm_plot],
-                                           ['Merger-driven', 'Instability-driven', 'Radio Mode', 'BH-BH Mergers'],
-                                           ['#2196F3', '#9C27B0', '#FF5722', '#4CAF50']):
+                                           [md_plot, id_plot, td_plot, rm_plot, bm_plot],
+                                           ['Merger-driven', 'Instability-driven', 'Torque-driven', 'Radio Mode', 'BH-BH Mergers'],
+                                           ['#2196F3', '#9C27B0', '#FF9800', '#FF5722', '#4CAF50']):
         pos = channel > 0
         if np.sum(pos) > 0:
             log_bh_pos = np.log10(bh_plot[pos])
@@ -302,6 +333,8 @@ def main():
 
         md_halo = np.zeros(len(halo_centres))
         id_halo = np.zeros(len(halo_centres))
+        td_halo = np.zeros(len(halo_centres))
+        sm_halo = np.zeros(len(halo_centres))
         rm_halo = np.zeros(len(halo_centres))
         bm_halo = np.zeros(len(halo_centres))
 
@@ -311,13 +344,15 @@ def main():
                 total = BlackHoleMass[central_bh][in_bin].sum()
                 md_halo[i] = MergerDriven[central_bh][in_bin].sum() / total
                 id_halo[i] = InstabilityDriven[central_bh][in_bin].sum() / total
+                td_halo[i] = TorqueDriven[central_bh][in_bin].sum() / total
+                sm_halo[i] = SeedModeAccretion[central_bh][in_bin].sum() / total
                 rm_halo[i] = RadioMode[central_bh][in_bin].sum() / total
                 bm_halo[i] = BHMerger[central_bh][in_bin].sum() / total
 
-        for frac, marker, label, colour in zip([md_halo, id_halo, rm_halo, bm_halo],
-                                                  ['o', 'D', 's', '^'],
-                                                  ['Merger-driven', 'Instability-driven', 'Radio mode', 'BH-BH mergers'],
-                                                  ['#2196F3', '#9C27B0', '#FF5722', '#4CAF50']):
+        for frac, marker, label, colour in zip([md_halo, id_halo, td_halo, sm_halo, rm_halo, bm_halo],
+                                                  ['o', 'D', 'P', 'X', 's', '^'],
+                                                  ['Merger-driven', 'Instability-driven', 'Torque-driven', 'Seed-mode', 'Radio mode', 'BH-BH mergers'],
+                                                  ['#2196F3', '#9C27B0', '#FF9800', '#795548', '#FF5722', '#4CAF50']):
             mask = frac > 0
             if np.any(mask):
                 ax.plot(halo_centres[mask], frac[mask], marker=marker, linestyle='-',
@@ -373,6 +408,8 @@ def main():
         snap_age = []
         snap_md_total = []
         snap_id_total = []
+        snap_td_total = []
+        snap_sm_total = []
         snap_rm_total = []
         snap_bm_total = []
         snap_total_bh = []
@@ -381,6 +418,8 @@ def main():
             bh = read_hdf(file_list, sn, 'BlackHoleMass') * 1.0e10 / Hubble_h
             md = read_hdf(file_list, sn, 'MergerDrivenBHaccretionMass') * 1.0e10 / Hubble_h
             id_ = read_hdf(file_list, sn, 'InstabilityDrivenBHaccretionMass') * 1.0e10 / Hubble_h
+            td = read_hdf(file_list, sn, 'TorqueDrivenBHaccretionMass') * 1.0e10 / Hubble_h
+            sm = read_hdf(file_list, sn, 'SeedModeBHaccretionMass') * 1.0e10 / Hubble_h
             rm = read_hdf(file_list, sn, 'RadioModeBHaccretionMass') * 1.0e10 / Hubble_h
             bm = read_hdf(file_list, sn, 'BHMergerMass') * 1.0e10 / Hubble_h
 
@@ -396,6 +435,8 @@ def main():
             snap_age.append(redshift_to_age_gyr(z))
             snap_md_total.append(md.sum())
             snap_id_total.append(id_.sum())
+            snap_td_total.append(td.sum() if len(td) > 0 else 0.0)
+            snap_sm_total.append(sm.sum() if len(sm) > 0 else 0.0)
             snap_rm_total.append(rm.sum())
             snap_bm_total.append(bm.sum())
             snap_total_bh.append(total)
@@ -404,6 +445,8 @@ def main():
         snap_age = np.array(snap_age)
         snap_md_total = np.array(snap_md_total)
         snap_id_total = np.array(snap_id_total)
+        snap_td_total = np.array(snap_td_total)
+        snap_sm_total = np.array(snap_sm_total)
         snap_rm_total = np.array(snap_rm_total)
         snap_bm_total = np.array(snap_bm_total)
         snap_total_bh = np.array(snap_total_bh)
@@ -415,6 +458,8 @@ def main():
             snap_age = snap_age[order]
             snap_md_total = snap_md_total[order]
             snap_id_total = snap_id_total[order]
+            snap_td_total = snap_td_total[order]
+            snap_sm_total = snap_sm_total[order]
             snap_rm_total = snap_rm_total[order]
             snap_bm_total = snap_bm_total[order]
             snap_total_bh = snap_total_bh[order]
@@ -422,6 +467,8 @@ def main():
             # Compute fractions
             snap_md_frac = snap_md_total / snap_total_bh
             snap_id_frac = snap_id_total / snap_total_bh
+            snap_td_frac = snap_td_total / snap_total_bh
+            snap_sm_frac = snap_sm_total / snap_total_bh
             snap_rm_frac = snap_rm_total / snap_total_bh
             snap_bm_frac = snap_bm_total / snap_total_bh
 
@@ -430,10 +477,10 @@ def main():
                                             gridspec_kw={'height_ratios': [2, 1]})
 
             for frac, marker, label, colour in zip(
-                    [snap_md_frac, snap_id_frac, snap_rm_frac, snap_bm_frac],
-                    ['o', 'D', 's', '^'],
-                    ['Merger-driven', 'Instability-driven', 'Radio mode', 'BH-BH mergers'],
-                    ['#2196F3', '#9C27B0', '#FF5722', '#4CAF50']):
+                    [snap_md_frac, snap_id_frac, snap_td_frac, snap_sm_frac, snap_rm_frac, snap_bm_frac],
+                    ['o', 'D', 'P', 'X', 's', '^'],
+                    ['Merger-driven', 'Instability-driven', 'Torque-driven', 'Seed-mode', 'Radio mode', 'BH-BH mergers'],
+                    ['#2196F3', '#9C27B0', '#FF9800', '#795548', '#FF5722', '#4CAF50']):
                 mask = frac > 0
                 if np.any(mask):
                     ax1.plot(snap_z[mask], frac[mask], marker=marker, linestyle='-',
@@ -461,6 +508,8 @@ def main():
             dt = np.diff(snap_age) * 1e9  # Gyr -> yr
             md_rate = np.diff(snap_md_total) / dt  # M_sun/yr
             id_rate = np.diff(snap_id_total) / dt
+            td_rate = np.diff(snap_td_total) / dt
+            sm_rate = np.diff(snap_sm_total) / dt
             rm_rate = np.diff(snap_rm_total) / dt
             bm_rate = np.diff(snap_bm_total) / dt
             total_rate = np.diff(snap_total_bh) / dt
@@ -471,10 +520,10 @@ def main():
 
             # Top panel: rates per channel
             for rate, marker, label, colour in zip(
-                    [md_rate, id_rate, rm_rate, bm_rate],
-                    ['o', 'D', 's', '^'],
-                    ['Merger-driven', 'Instability-driven', 'Radio mode', 'BH-BH mergers'],
-                    ['#2196F3', '#9C27B0', '#FF5722', '#4CAF50']):
+                    [md_rate, id_rate, td_rate, sm_rate, rm_rate, bm_rate],
+                    ['o', 'D', 'P', 'X', 's', '^'],
+                    ['Merger-driven', 'Instability-driven', 'Torque-driven', 'Seed-mode', 'Radio mode', 'BH-BH mergers'],
+                    ['#2196F3', '#9C27B0', '#FF9800', '#795548', '#FF5722', '#4CAF50']):
                 mask = rate > 0
                 if np.any(mask):
                     ax1.plot(mid_z[mask], rate[mask], marker=marker, linestyle='-',

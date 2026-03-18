@@ -345,8 +345,11 @@ void add_galaxies_together(const int t, const int p, struct GALAXY *galaxies, co
     galaxies[t].QuasarModeBHaccretionMass += galaxies[p].QuasarModeBHaccretionMass;
     galaxies[t].MergerDrivenBHaccretionMass += galaxies[p].MergerDrivenBHaccretionMass;
     galaxies[t].InstabilityDrivenBHaccretionMass += galaxies[p].InstabilityDrivenBHaccretionMass;
+    galaxies[t].TorqueDrivenBHaccretionMass += galaxies[p].TorqueDrivenBHaccretionMass;
+    galaxies[t].SeedModeBHaccretionMass += galaxies[p].SeedModeBHaccretionMass;
     galaxies[t].RadioModeBHaccretionMass += galaxies[p].RadioModeBHaccretionMass;
     galaxies[t].BHMergerMass += galaxies[p].BHMergerMass;
+    galaxies[t].BHSeedMass += galaxies[p].BHSeedMass;
 
     galaxies[t].CGMgas += galaxies[p].CGMgas;
     galaxies[t].MetalsCGMgas += galaxies[p].MetalsCGMgas;

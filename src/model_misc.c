@@ -102,8 +102,11 @@ void init_galaxy(const int p, const int halonr, int *galaxycounter, const struct
     galaxies[p].QuasarModeBHaccretionMass = 0.0;
     galaxies[p].MergerDrivenBHaccretionMass = 0.0;
     galaxies[p].InstabilityDrivenBHaccretionMass = 0.0;
+    galaxies[p].TorqueDrivenBHaccretionMass = 0.0;
+    galaxies[p].SeedModeBHaccretionMass = 0.0;
     galaxies[p].RadioModeBHaccretionMass = 0.0;
     galaxies[p].BHMergerMass = 0.0;
+    galaxies[p].BHSeedMass = 0.0;
     galaxies[p].TimeOfLastMajorMerger = -1.0;
     galaxies[p].TimeOfLastMinorMerger = -1.0;
     galaxies[p].OutflowRate = 0.0;

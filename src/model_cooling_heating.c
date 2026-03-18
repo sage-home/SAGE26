@@ -1065,6 +1065,7 @@ void torque_driven_BH_accretion(const int p, const double dt, struct GALAXY *gal
 
         // Track as quasar-mode accretion (secular accretion contributes to AGN activity)
         galaxies[p].QuasarModeBHaccretionMass += accreted;
+        galaxies[p].TorqueDrivenBHaccretionMass += accreted;
     }
 }
 
@@ -1161,5 +1162,6 @@ void seed_mode_BH_accretion(const int p, const double dt, struct GALAXY *galaxie
 
         // Track as quasar-mode accretion
         galaxies[p].QuasarModeBHaccretionMass += accreted;
+        galaxies[p].SeedModeBHaccretionMass += accreted;
     }
 }
