@@ -4,7 +4,7 @@
 
 FileNameGalaxies   model
 %OutputDir         /<absolute>/<root>/<path>/sage-model/output/millennium/
-OutputDir          output/millennium/
+OutputDir          output/millennium_ffb_bk25/
 
 FirstFile         0
 LastFile          7
@@ -55,7 +55,7 @@ DiskInstabilityOn           1   %0: switch off; 1: bulge and BH growth through i
 CGMrecipeOn                 1   %0: switch off
 CGMDensityProfile           0   %0: uniform; 1: NFW; 2: beta-profile (β=2/3)
 FIREmodeOn                  1   %0: switch off
-FeedbackFreeModeOn          1   %0: switch off; 1: Li et al. 2024 mass-based; 2: Boylan-Kolchin 2025 acceleration-based
+FeedbackFreeModeOn          2   %0: switch off; 1: Li et al. 2024 mass-based; 2: Boylan-Kolchin 2025 acceleration-based
 BulgeSizeOn                 3   %0: switch off; 1: Shen eq. 33; 2: Shen eq. 32; 3: Tonini
 SaveFullSFH                 1   %0: switch off
 TrackICSAssembly            1   %0: switch off; 1: track ICS_disrupt and ICS_accrete

@@ -120,6 +120,7 @@ struct HDF5_GALAXY_OUTPUT
     float *Concentration;
     float *mdot_cool;
     float *mdot_stream;
+    float *g_max;
 };
     
     // Proto-Types //

@@ -3299,15 +3299,17 @@ def plot_14_density_evolution():
     # Arrays to store density evolution data
     redshifts_density = []
     # Main values
-    sfrd_ffb_list, sfrd_noffb_list, sfrd_ffb100_list = [], [], []
-    smd_ffb_list, smd_noffb_list, smd_ffb100_list = [], [], []
+    sfrd_ffb_list, sfrd_noffb_list, sfrd_ffb100_list, sfrd_ffb_bk25_list = [], [], [], []
+    smd_ffb_list, smd_noffb_list, smd_ffb100_list, smd_ffb_bk25_list = [], [], [], []
     # Bootstrap errors (16th and 84th percentiles)
     sfrd_ffb_lo, sfrd_ffb_hi = [], []
     sfrd_noffb_lo, sfrd_noffb_hi = [], []
     sfrd_ffb100_lo, sfrd_ffb100_hi = [], []
+    sfrd_ffb_bk25_lo, sfrd_ffb_bk25_hi = [], []
     smd_ffb_lo, smd_ffb_hi = [], []
     smd_noffb_lo, smd_noffb_hi = [], []
     smd_ffb100_lo, smd_ffb100_hi = [], []
+    smd_ffb_bk25_lo, smd_ffb_bk25_hi = [], []
 
     N_BOOT = 100
     rng = np.random.default_rng(SEED)
@@ -3346,7 +3348,11 @@ def plot_14_density_evolution():
         data_FFB100 = load_model(FFB100_DIR, filename=MODEL_FILE,
                                  snapshot=Snapshot, properties=props)
 
-        if not data_FFB and not data_noFFB and not data_FFB100:
+        # Load FFB BK25
+        data_FFB_BK25 = load_model(FFB_BK25_DIR, filename=MODEL_FILE,
+                                   snapshot=Snapshot, properties=props)
+
+        if not data_FFB and not data_noFFB and not data_FFB100 and not data_FFB_BK25:
             continue
 
         redshifts_density.append(z)
@@ -3399,6 +3405,22 @@ def plot_14_density_evolution():
         smd_ffb100_lo.append(smd_l)
         smd_ffb100_hi.append(smd_h)
 
+        # FFB BK25
+        if data_FFB_BK25:
+            sfr_vals = data_FFB_BK25['SfrDisk'] + data_FFB_BK25['SfrBulge']
+            sm_vals = data_FFB_BK25['StellarMass']
+            sfrd_med, sfrd_l, sfrd_h = bootstrap_density(sfr_vals)
+            smd_med, smd_l, smd_h = bootstrap_density(sm_vals)
+        else:
+            sfrd_med, sfrd_l, sfrd_h = np.nan, np.nan, np.nan
+            smd_med, smd_l, smd_h = np.nan, np.nan, np.nan
+        sfrd_ffb_bk25_list.append(sfrd_med)
+        sfrd_ffb_bk25_lo.append(sfrd_l)
+        sfrd_ffb_bk25_hi.append(sfrd_h)
+        smd_ffb_bk25_list.append(smd_med)
+        smd_ffb_bk25_lo.append(smd_l)
+        smd_ffb_bk25_hi.append(smd_h)
+
     # Convert to arrays and sort by redshift
     redshifts_density = np.array(redshifts_density)
     sort_idx = np.argsort(redshifts_density)
@@ -3413,6 +3435,10 @@ def plot_14_density_evolution():
     sfrd_ffb100_sorted = np.array(sfrd_ffb100_list)[sort_idx]
     sfrd_ffb100_lo_sorted = np.array(sfrd_ffb100_lo)[sort_idx]
     sfrd_ffb100_hi_sorted = np.array(sfrd_ffb100_hi)[sort_idx]
+    sfrd_ffb_bk25_sorted = np.array(sfrd_ffb_bk25_list)[sort_idx]
+    sfrd_ffb_bk25_lo_sorted = np.array(sfrd_ffb_bk25_lo)[sort_idx]
+    sfrd_ffb_bk25_hi_sorted = np.array(sfrd_ffb_bk25_hi)[sort_idx]
+
 
     smd_ffb_sorted = np.array(smd_ffb_list)[sort_idx]
     smd_ffb_lo_sorted = np.array(smd_ffb_lo)[sort_idx]
@@ -3423,6 +3449,9 @@ def plot_14_density_evolution():
     smd_ffb100_sorted = np.array(smd_ffb100_list)[sort_idx]
     smd_ffb100_lo_sorted = np.array(smd_ffb100_lo)[sort_idx]
     smd_ffb100_hi_sorted = np.array(smd_ffb100_hi)[sort_idx]
+    smd_ffb_bk25_sorted = np.array(smd_ffb_bk25_list)[sort_idx]
+    smd_ffb_bk25_lo_sorted = np.array(smd_ffb_bk25_lo)[sort_idx]
+    smd_ffb_bk25_hi_sorted = np.array(smd_ffb_bk25_hi)[sort_idx]
 
     # ===== QUANTITATIVE COMPARISON: SAGE26 vs No FFB =====
     print("\n" + "="*60)
@@ -3511,6 +3540,7 @@ def plot_14_density_evolution():
     valid_ffb = ~np.isnan(sfrd_ffb_sorted)
     valid_noffb = ~np.isnan(sfrd_noffb_sorted)
     valid_ffb100 = ~np.isnan(sfrd_ffb100_sorted)
+    valid_ffb_bk25 = ~np.isnan(sfrd_ffb_bk25_sorted)
 
     if np.sum(valid_noffb) > 1:
         axes[0].plot(z_sorted[valid_noffb], sfrd_noffb_sorted[valid_noffb], '-',
@@ -3533,6 +3563,13 @@ def plot_14_density_evolution():
         if np.sum(boot_valid) > 1:
             axes[0].fill_between(z_sorted[boot_valid], sfrd_ffb100_lo_sorted[boot_valid],
                                 sfrd_ffb100_hi_sorted[boot_valid], color='dodgerblue', alpha=0.2)
+    if np.sum(valid_ffb_bk25) > 1:
+        axes[0].plot(z_sorted[valid_ffb_bk25], sfrd_ffb_bk25_sorted[valid_ffb_bk25], '-',
+                    color='seagreen', linewidth=3.0, label=r'$\epsilon_{\rm max}=0.2$ (BK25)')
+        boot_valid = valid_ffb_bk25 & ~np.isnan(sfrd_ffb_bk25_lo_sorted) & ~np.isnan(sfrd_ffb_bk25_hi_sorted)
+        if np.sum(boot_valid) > 1:
+            axes[0].fill_between(z_sorted[boot_valid], sfrd_ffb_bk25_lo_sorted[boot_valid],
+                                sfrd_ffb_bk25_hi_sorted[boot_valid], color='seagreen', alpha=0.2)
     if len(mu_z_list) > 1:
         valid_mu = ~np.isnan(mu_sfrd_sorted)
         if np.sum(valid_mu) > 1:
@@ -3588,6 +3625,7 @@ def plot_14_density_evolution():
     valid_smd_noffb = ~np.isnan(smd_noffb_sorted)
     valid_smd_ffb = ~np.isnan(smd_ffb_sorted)
     valid_smd_ffb100 = ~np.isnan(smd_ffb100_sorted)
+    valid_smd_ffb_bk25 = ~np.isnan(smd_ffb_bk25_sorted)
 
     if np.sum(valid_smd_noffb) > 1:
         axes[1].plot(z_sorted[valid_smd_noffb], smd_noffb_sorted[valid_smd_noffb], '-',
@@ -3610,6 +3648,13 @@ def plot_14_density_evolution():
         if np.sum(boot_valid) > 1:
             axes[1].fill_between(z_sorted[boot_valid], smd_ffb100_lo_sorted[boot_valid],
                                 smd_ffb100_hi_sorted[boot_valid], color='dodgerblue', alpha=0.2)
+    if np.sum(valid_smd_ffb_bk25) > 1:
+        axes[1].plot(z_sorted[valid_smd_ffb_bk25], smd_ffb_bk25_sorted[valid_smd_ffb_bk25], '-',
+                    color='seagreen', linewidth=3.0, label=r'$\epsilon_{\rm max}=0.2$ (BK25)')
+        boot_valid = valid_smd_ffb_bk25 & ~np.isnan(smd_ffb_bk25_lo_sorted) & ~np.isnan(smd_ffb_bk25_hi_sorted)
+        if np.sum(boot_valid) > 1:
+            axes[1].fill_between(z_sorted[boot_valid], smd_ffb_bk25_lo_sorted[boot_valid],
+                                smd_ffb_bk25_hi_sorted[boot_valid], color='seagreen', alpha=0.2)
     if len(mu_z_list) > 1:
         valid_mu_smd = ~np.isnan(mu_smd_sorted)
         if np.sum(valid_mu_smd) > 1:
@@ -3850,6 +3895,15 @@ def plot_16_sfrd_history():
             'color': 'dodgerblue', 'ls': '--', 'lw': 3.5,
             'redshifts': redshifts_mu, 'first_snap': MINIUCHUU_FIRST_SNAP, 'last_snap': MINIUCHUU_LAST_SNAP,
             'volume': MINIUCHUU_VOLUME,
+        })
+
+    # 4. New FFB_BK Model (if available)
+    if os.path.exists(FFB_BK25_DIR):
+        sim_dirs.append({
+            'path': FFB_BK25_DIR, 'label': 'SAGE26 (FFB_BK25)',
+            'color': 'darkgreen', 'ls': '-.', 'lw': 3.0,
+            'redshifts': redshifts, 'first_snap': FirstSnap, 'last_snap': LastSnap,
+            'volume': VOLUME,
         })
 
     fig = plt.figure()
@@ -4104,6 +4158,12 @@ def plot_17_smd_history():
             'path': MINIUCHUU_DIR, 'label': 'SAGE26 (miniUchuu)', 'color': 'dodgerblue', 'ls': '--', 'lw': 3.5,
             'redshifts': redshifts_mu, 'first_snap': MINIUCHUU_FIRST_SNAP, 'last_snap': MINIUCHUU_LAST_SNAP,
             'volume': MINIUCHUU_VOLUME, 'mass_convert': MINIUCHUU_MASS_CONVERT,
+        })
+    if os.path.exists(FFB_BK25_DIR):
+        sim_dirs.append({
+            'path': FFB_BK25_DIR, 'label': 'BK25 FFB', 'color': 'darkgreen', 'ls': '-', 'lw': 3.0,
+            'redshifts': redshifts, 'first_snap': 0, 'last_snap': 63,
+            'volume': VOLUME, 'mass_convert': MASS_CONVERT,
         })
     # for m in FFB_MODELS:
     #     if os.path.exists(m['dir']):
@@ -5048,6 +5108,13 @@ def plot_19_smf_ffb_grid():
             'redshifts': mill_redshifts, 'first_snap': 0, 'last_snap': 63,
             'volume': VOLUME, 'mass_convert': MASS_CONVERT,
         })
+    if os.path.exists(FFB_BK25_DIR):
+        models.append({
+            'path': FFB_BK25_DIR, 'label': r'BK25 FFB',
+            'color': 'darkgreen', 'ls': '-', 'lw': 3.0,
+            'redshifts': mill_redshifts, 'first_snap': 0, 'last_snap': 63,
+            'volume': VOLUME, 'mass_convert': MASS_CONVERT,
+        })
 
     # Load observational data
     all_obs = _load_smf_grid_observations()
@@ -5080,7 +5147,7 @@ def plot_19_smf_ffb_grid():
 
             try:
                 # For FFB 100% model at z >= 7, apply resolution cut based on SMHM relation
-                if model['label'] == r'$\epsilon_{\rm max}=1.0$' and z_mid > 7.0:
+                if model['label'] == r'$\epsilon_{\rm max}=1.0$' and z_mid > 50.0:
                     data = load_model(model['path'], snapshot=snap_name,
                                       properties=['StellarMass', 'Mvir'])
                     m_stars = data['StellarMass']
@@ -5147,7 +5214,7 @@ def plot_19_smf_ffb_grid():
                 transform=ax.transAxes, ha='right', va='top')
 
     # Axis limits and labels
-    axes_flat[0].set_xlim(8, 12.3)
+    axes_flat[0].set_xlim(9, 12.3)
     axes_flat[0].set_ylim(-6, -1.5)
 
     for i, ax in enumerate(axes_flat):
