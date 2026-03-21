@@ -55,8 +55,8 @@ DiskInstabilityOn           1   %0: switch off; 1: bulge and BH growth through i
 CGMrecipeOn                 1   %0: switch off
 CGMDensityProfile           0   %0: uniform; 1: NFW; 2: beta-profile (β=2/3)
 FIREmodeOn                  1   %0: switch off
-ConcentrationOn             1   %0: off; 1: Ishiyama+21 lookup table; 2: Vmax/Vvir from simulation
-FeedbackFreeModeOn          2   %0: switch off; 1: Li et al. 2024 mass-based; 2: Boylan-Kolchin 2025 acceleration-based
+ConcentrationOn             2   %0: off; 1: Ishiyama+21 lookup table; 2: Vmax/Vvir from simulation
+FeedbackFreeModeOn          1   %0: switch off; 1: Li et al. 2024 mass-based; 2: Boylan-Kolchin 2025 acceleration-based
 BulgeSizeOn                 3   %0: switch off; 1: Shen eq. 33; 2: Shen eq. 32; 3: Tonini
 SaveFullSFH                 1   %0: switch off
 TrackICSAssembly            1   %0: switch off; 1: track ICS_disrupt and ICS_accrete
