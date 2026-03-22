@@ -197,7 +197,7 @@ struct GALAXY
     float mdot_cool;
     float mdot_stream;
 
-    float g_max;
+    double g_max;
 };
 
 

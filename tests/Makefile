@@ -49,7 +49,8 @@ TEST_SOURCES = \
 	test_reincorporation.c \
 	test_cooling_heating.c \
 	test_halo_mergers.c \
-	test_agn_feedback.c
+	test_agn_feedback.c \
+	test_ffb_concentration.c
 
 # Function to check if all dependencies exist for a test
 # Usage: $(call check_test_deps,test_name)
@@ -220,6 +221,9 @@ test_bulge: $(OUTPUT_DIR)/test_bulge_sizes
 
 test_physics: $(OUTPUT_DIR)/test_physics_validation
 	$(OUTPUT_DIR)/test_physics_validation
+
+test_ffb: $(OUTPUT_DIR)/test_ffb_concentration
+	$(OUTPUT_DIR)/test_ffb_concentration
 
 # Quick test (just conservation laws - fastest)
 quick: $(OUTPUT_DIR)/test_conservation

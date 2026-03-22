@@ -58,7 +58,7 @@ FIREmodeOn                  1   %0: switch off
 
 ConcentrationOn             3   %0: off; 1: Ishiyama+21 lookup table; 2: Vmax/Vvir from simulation; 3: Vmax/Vvir + infall freeze for satellites
 FeedbackFreeModeOn          1   %0: switch off; 1: Li et al. 2024 mass-based; 2: BK25 (Ishiyama+21 conc); 3: BK25 (Vmax/Vvir conc)
-FFBSigmoidCutoff            1   %0: no cutoff on sigmoid tail; 1: hard cutoff at P=0.1 lower bound
+FFBSigmoidCutoff            0   %0: no cutoff on sigmoid tail; 1: hard cutoff at P=0.1 lower bound
 
 BulgeSizeOn                 3   %0: switch off; 1: Shen eq. 33; 2: Shen eq. 32; 3: Tonini
 SaveFullSFH                 1   %0: switch off
