@@ -275,6 +275,7 @@ int32_t prepare_galaxy_for_output(struct GALAXY *g, struct GALAXY_OUTPUT *o, str
     o->ICS = g->ICS;
     o->ICS_disrupt = g->ICS_disrupt;
     o->ICS_accrete = g->ICS_accrete;
+    o->ICS_sum_mt = g->ICS_sum_mt;
     o->H2gas = g->H2gas;
     o->H1gas = g->H1gas;
 

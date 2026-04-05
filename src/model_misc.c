@@ -89,6 +89,7 @@ void init_galaxy(const int p, const int halonr, int *galaxycounter, const struct
     // Initialize ICS assembly tracking (cumulative mass through each channel)
     galaxies[p].ICS_disrupt = 0.0;
     galaxies[p].ICS_accrete = 0.0;
+    galaxies[p].ICS_sum_mt = 0.0;
 
     galaxies[p].DiskScaleRadius = get_disk_radius(halonr, p, halos, galaxies);
     galaxies[p].BulgeRadius = get_bulge_radius(p, galaxies, run_params);

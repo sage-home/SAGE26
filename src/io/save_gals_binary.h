@@ -52,6 +52,7 @@ extern "C" {
       float ICS;
       float ICS_disrupt;
       float ICS_accrete;
+      float ICS_sum_mt;
       float H2gas;
       float H1gas;
 

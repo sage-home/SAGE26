@@ -459,16 +459,17 @@ int evolve_galaxies(const int halonr, const int ngal, int *numgals, int *maxgals
                     galaxies[p].mergeIntoID = *numgals + merger_centralgal;  // position in output
 
                     if(isfinite(galaxies[p].MergTime)) {
+                        // Time at which this event occurs (same formula used for mergers)
+                        const double event_time = run_params->Age[galaxies[p].SnapNum] - (step + 0.5) * (deltaT / effective_steps);
                         // disruption has occured!
                         if(galaxies[p].MergTime > 0.0) {
-                            disrupt_satellite_to_ICS(merger_centralgal, p, galaxies, run_params);
+                            disrupt_satellite_to_ICS(merger_centralgal, p, event_time, galaxies, run_params);
                         } else {
                             // a merger has occured!
-                            double time = run_params->Age[galaxies[p].SnapNum] - (step + 0.5) * (deltaT / effective_steps);
                             // Map adaptive step to fixed STEPS bins for SFR arrays
                             int step_bin = (step * STEPS) / effective_steps;
                             if(step_bin >= STEPS) step_bin = STEPS - 1;
-                            deal_with_galaxy_merger(p, merger_centralgal, centralgal, time, deltaT / effective_steps, halonr, step_bin, galaxies, run_params);
+                            deal_with_galaxy_merger(p, merger_centralgal, centralgal, event_time, deltaT / effective_steps, halonr, step_bin, galaxies, run_params);
                         }
                     }
                 }

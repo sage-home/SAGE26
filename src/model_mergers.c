@@ -206,6 +206,7 @@ void deal_with_galaxy_merger(const int p, const int merger_centralgal, const int
     } else {
         // CASE 2: MINOR MERGER
         galaxies[p].mergeType = 1;
+        galaxies[merger_centralgal].TimeOfLastMinorMerger = time;
 
         if (is_disk_dominated) {
             // Minor merger on DISC (Section 5.2.1)
@@ -243,9 +244,11 @@ void grow_black_hole(const int merger_centralgal, const double mass_ratio, struc
             galaxies[merger_centralgal].MetalsColdGas = 0.0;
         }
 
-        galaxies[merger_centralgal].QuasarModeBHaccretionMass += BHaccrete;
+        // galaxies[merger_centralgal].QuasarModeBHaccretionMass += BHaccrete;
 
         quasar_mode_wind(merger_centralgal, BHaccrete, galaxies, run_params);
+
+        galaxies[merger_centralgal].QuasarModeBHaccretionMass += BHaccrete;
     }
 }
 
@@ -626,7 +629,7 @@ void collisional_starburst_recipe(const double mass_ratio, const int merger_cent
 
 
 
-void disrupt_satellite_to_ICS(const int centralgal, const int gal, struct GALAXY *galaxies, const struct params *run_params)
+void disrupt_satellite_to_ICS(const int centralgal, const int gal, const double time, struct GALAXY *galaxies, const struct params *run_params)
 {
     // Transfer satellite's gas to central's hot/CGM reservoir (regime-dependent)
     const double total_gas = galaxies[gal].ColdGas + galaxies[gal].HotGas + galaxies[gal].CGMgas;
@@ -660,6 +663,10 @@ void disrupt_satellite_to_ICS(const int centralgal, const int gal, struct GALAXY
     // This ICS was formed elsewhere (in the satellite's halo) and is being brought in
     if(run_params->TrackICSAssembly && galaxies[gal].ICS > 0.0) {
         galaxies[centralgal].ICS_accrete += galaxies[gal].ICS;
+        // Inherit satellite's mass-weighted deposit-time accumulator so the
+        // mean ICS-assembly time reflects when the stars were *originally* stripped,
+        // not when this packet transferred into the central's reservoir.
+        galaxies[centralgal].ICS_sum_mt += galaxies[gal].ICS_sum_mt;
     }
 
     // Disrupt stellar mass: split between ICS and BCG based on FractionDisruptedToICS
@@ -675,6 +682,8 @@ void disrupt_satellite_to_ICS(const int centralgal, const int gal, struct GALAXY
     // Track ICS assembly: newly disrupted stellar mass goes to ICS_disrupt
     if(run_params->TrackICSAssembly) {
         galaxies[centralgal].ICS_disrupt += new_ICS_from_stripping;
+        // Record deposition time for the mass-weighted assembly-time accumulator
+        galaxies[centralgal].ICS_sum_mt += new_ICS_from_stripping * time;
     }
 
     // Add remainder to BCG bulge (accreted onto outer envelope)

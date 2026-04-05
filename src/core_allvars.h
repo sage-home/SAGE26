@@ -158,6 +158,8 @@ struct GALAXY
     float SFHMassBulge[ABSOLUTEMAXSNAPS];  /* stellar mass formed in bulge (starbursts) at each snapshot */
     float ICS_disrupt;                     /* cumulative stellar mass disrupted to ICS (assembly tracking) */
     float ICS_accrete;                     /* cumulative ICS accreted from satellites (assembly tracking) */
+    float ICS_sum_mt;                      /* mass-weighted accumulator: sum of m*t (code time) at ICS deposition.
+                                              Mean ICS-assembly lookback = ICS_sum_mt / (ICS_disrupt + ICS_accrete). */
 
     /* misc */
     float DiskScaleRadius;

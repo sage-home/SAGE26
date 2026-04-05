@@ -56,7 +56,7 @@ CGMrecipeOn                 1   %0: switch off
 CGMDensityProfile           0   %0: uniform; 1: NFW; 2: beta-profile (β=2/3)
 FIREmodeOn                  1   %0: switch off
 
-ConcentrationOn             3   %0: off; 1: Ishiyama+21 lookup table; 2: Vmax/Vvir from simulation; 3: Vmax/Vvir + infall freeze for satellites
+ConcentrationOn             1   %0: off; 1: Ishiyama+21 lookup table; 2: Vmax/Vvir from simulation; 3: Vmax/Vvir + infall freeze for satellites
 FeedbackFreeModeOn          1   %0: switch off; 1: Li et al. 2024 mass-based; 2: BK25 (Ishiyama+21 conc); 3: BK25 (ConcentrationOn method); 4: BK25 + log-normal c scatter; 5: Li+24 mass sharp (no sigmoid)
 
 BulgeSizeOn                 3   %0: switch off; 1: Shen eq. 33; 2: Shen eq. 32; 3: Tonini
