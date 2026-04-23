@@ -603,7 +603,7 @@ void determine_and_store_ffb_regime(const int ngal, const double Zcurr, struct G
                 galaxies[p].FFBRegime = 0;  // Normal halo
             }
         } else if(run_params->FeedbackFreeModeOn == 7) {
-            // BK25 stored-c + H2-based SF (same regime detection as mode 3)
+            // BK25 log-normal c scatter + H2-based SF (same regime detection as mode 4)
             const double Mvir = galaxies[p].Mvir;
             const double Rvir = galaxies[p].Rvir;
 
@@ -613,8 +613,19 @@ void determine_and_store_ffb_regime(const int ngal, const double Zcurr, struct G
                 continue;
             }
 
-            double c = (double)galaxies[p].Concentration;
+            const double Mvir_Msun_h = Mvir * 1.0e10;
+            const double logM = log10(Mvir_Msun_h);
+            double c = interpolate_concentration_ishiyama21(logM, Zcurr, run_params);
             if(c < 1.0) c = 1.0;
+
+            if(run_params->FFBConcSigma > 0.0) {
+                double u = (double)galaxies[p].FFBRandom;
+                if(u < 1.0e-6) u = 1.0e-6;
+                if(u > 1.0 - 1.0e-6) u = 1.0 - 1.0e-6;
+                const double z_normal = inverse_normal_cdf(u);
+                c = c * exp(run_params->FFBConcSigma * z_normal);
+                if(c < 1.0) c = 1.0;
+            }
 
             const double g_vir = run_params->G * Mvir / (Rvir * Rvir);
             const double mu_c = log(1.0 + c) - c / (1.0 + c);
@@ -623,7 +634,7 @@ void determine_and_store_ffb_regime(const int ngal, const double Zcurr, struct G
             galaxies[p].g_max = g_max;
 
             if(g_max > g_crit) {
-                galaxies[p].FFBRegime = 1;  // FFB halo - above critical acceleration
+                galaxies[p].FFBRegime = 1;  // FFB halo
             } else {
                 galaxies[p].FFBRegime = 0;  // Normal halo
             }
