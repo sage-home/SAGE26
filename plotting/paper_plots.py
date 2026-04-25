@@ -550,15 +550,17 @@ def mass_function_bootstrap(log_masses, volume, binwidth=0.1, mass_range=None,
     nbins = int(round((ma - mi) / binwidth))
 
     # Bootstrap resampling
-    boot_phi = np.zeros((n_boot, len(centers)))
+    boot_phi = np.full((n_boot, len(centers)), np.nan)
     for b in range(n_boot):
         idx = np.random.randint(0, n_gal, n_gal)
         boot_masses = log_masses[idx]
         counts, _ = np.histogram(boot_masses, range=(mi, ma), bins=nbins)
         with np.errstate(divide='ignore'):
-            boot_phi[b, :] = np.log10(counts / volume / binwidth)
+            vals = np.log10(counts / volume / binwidth)
+        # Replace -inf (empty bins) with nan so percentiles ignore them
+        boot_phi[b, :] = np.where(np.isfinite(vals), vals, np.nan)
 
-    # Compute percentiles
+    # Compute percentiles (nanpercentile skips nan, so empty-bin samples are excluded)
     with np.errstate(invalid='ignore'):
         phi_lo = np.nanpercentile(boot_phi, 16, axis=0)
         phi_hi = np.nanpercentile(boot_phi, 84, axis=0)
@@ -2212,11 +2214,11 @@ def plot_7_tcool_tff_distribution(snapdata):
     print('Plot 7: t_cool/t_ff distribution')
 
     snap_info = [
-        (SNAP_Z4, f'z = {REDSHIFTS[SNAP_Z4]:.1f}'),
-        (SNAP_Z3, f'z = {REDSHIFTS[SNAP_Z3]:.1f}'),
-        (SNAP_Z2, f'z = {REDSHIFTS[SNAP_Z2]:.1f}'),
-        (SNAP_Z1, f'z = {REDSHIFTS[SNAP_Z1]:.1f}'),
         (SNAP_Z0, f'z = {REDSHIFTS[SNAP_Z0]:.1f}'),
+        (SNAP_Z1, f'z = {REDSHIFTS[SNAP_Z1]:.1f}'),
+        (SNAP_Z2, f'z = {REDSHIFTS[SNAP_Z2]:.1f}'),
+        (SNAP_Z3, f'z = {REDSHIFTS[SNAP_Z3]:.1f}'),
+        (SNAP_Z4, f'z = {REDSHIFTS[SNAP_Z4]:.1f}'),
     ]
     cmap_violin = plt.cm.plasma
     colors_violin = [cmap_violin(x) for x in np.linspace(0.0, 0.85, len(snap_info))]
@@ -2290,76 +2292,136 @@ def plot_7_tcool_tff_distribution(snapdata):
 
 def plot_8_precipitation_fraction(snapdata):
     """
-    Precipitation fraction vs t_cool/t_ff: theoretical model curve
-    with galaxy scatter at z=0 and z=2.
+    Figure 8a: Precipitation fraction vs t_cool/t_ff: theoretical model curve
+    with mass-stratified galaxy scatter at z=0 and z=2.
+
+    Figure 8b: Median t_cool/t_ff vs halo mass at z=0 and z=2, showing
+    the mass dependence of thermal stability directly.
     """
     print('Plot 8: Precipitation fraction model')
 
+    snap_list = [(SNAP_Z0, 'z=0'), (SNAP_Z2, 'z=2')]
+    markers   = ['x', '+']
+    zcolors   = ['steelblue', 'firebrick']
+    mass_bins = np.arange(10.0, 15.5, 0.25)   # log10(Mvir/Msun) bin edges
+
+    # ------------------------------------------------------------------ #
+    # Figure 8a: f_precip vs t_cool/t_ff                                  #
+    # ------------------------------------------------------------------ #
     fig, ax = plt.subplots()
 
-    # Theoretical curve
-    ratio_arr = np.logspace(np.log10(0.5), 2.5, 2000)
-    f_precip = precipitation_fraction(ratio_arr)
-
-    ax.plot(ratio_arr, f_precip, 'teal', lw=3,
+    ratio_arr = np.logspace(np.log10(0.5), 4.0, 2000)
+    f_curve   = precipitation_fraction(ratio_arr)
+    ax.plot(ratio_arr, f_curve, 'teal', lw=3,
             label='SAGE26 inflow model', zorder=5)
 
-    ax.axvline(x=10, color='goldenrod', ls='--', lw=1.5, alpha=0.6,
+    ax.axvline(x=10, color='goldenrod', ls='--', lw=1.5, alpha=0.8,
                label=r'$t_{\rm cool}/t_{\rm ff} = 10$')
-    ax.axvline(x=12, color='goldenrod', ls=':', lw=1.0, alpha=1.0)
-
-    ax.axvspan(0.5, 10, alpha=0.06, color='red')
-    ax.axvspan(10, 12, alpha=0.06, color='goldenrod')
-    ax.axvspan(12, 300, alpha=0.06, color='steelblue')
-
-    ax.text(3, 0.55, 'Thermally\nUnstable', fontsize=14, ha='center',
+    ax.axvspan(0.5, 10,  alpha=0.06, color='red')
+    ax.axvspan(10,  12,  alpha=0.06, color='goldenrod')
+    ax.axvspan(12,  1e4, alpha=0.06, color='steelblue')
+    ax.text(2.5,  0.55, 'Thermally\nUnstable', fontsize=12, ha='center',
             va='center', color='firebrick', fontweight='bold')
-    ax.text(11, 0.70, 'Transition', fontsize=11, ha='center',
-            va='center', color='goldenrod', fontweight='bold', rotation=90)
-    ax.text(50, 0.12, 'Thermally\nStable', fontsize=14, ha='center',
-            va='center', color='steelblue', fontweight='bold')
+    ax.text(200,  0.55, 'Thermally\nStable',   fontsize=12, ha='center',
+            va='center', color='steelblue',  fontweight='bold')
 
-    # Galaxy scatter at z=0 and z=2
+    # Mass-stratified sampling: N_per_bin points from each 0.5-dex mass bin
+    N_PER_BIN = 80
     sc = None
-    markers = ['x', 'D']
-    for (snap, label), mark in zip(
-            [(SNAP_Z0, 'z=0'), (SNAP_Z2, 'z=2')], markers):
+    for (snap, label), mark, zcol in zip(snap_list, markers, zcolors):
         if snap not in snapdata:
             continue
-        d = snapdata[snap]
+        d     = snapdata[snap]
         ratio = d['tcool_over_tff']
-        w = np.where(
-            (d['Regime'] == 0) &
-            (ratio > 0) & np.isfinite(ratio) &
-            (d['Type'] == 0) &
-            (d['Mvir'] > 1e10) &
-            (ratio < 200)
+        logm  = np.log10(d['Mvir'])   # Mvir already in 1e10 Msun units
+        base  = np.where(
+            (d['Regime'] == 0) & (ratio > 0) & np.isfinite(ratio) &
+            (d['Type'] == 0)  & (d['Mvir'] > 1e10)
         )[0]
-        if len(w) > 0:
-            if len(w) > 500:
-                w = np.random.choice(w, 500, replace=False)
-            r_vals = ratio[w]
-            f_vals = precipitation_fraction(r_vals)
-            sc = ax.scatter(r_vals, f_vals, s=40, alpha=0.6,
-                            c=np.log10(d['Mvir'][w]), cmap='plasma',
-                            marker=mark, edgecolors='none', zorder=10,
-                            label=f'Galaxies ({label})')
+
+        sel = []
+        for mlo, mhi in zip(mass_bins[:-1], mass_bins[1:]):
+            inbin = base[(logm[base] > mlo) & (logm[base] <= mhi)]
+            if len(inbin) > N_PER_BIN:
+                inbin = np.random.choice(inbin, N_PER_BIN, replace=False)
+            sel.append(inbin)
+        if not sel:
+            continue
+        w      = np.concatenate(sel)
+        r_vals = ratio[w]
+        f_vals = precipitation_fraction(r_vals)
+        sc = ax.scatter(r_vals, f_vals, s=150, alpha=0.6,
+                        c=np.log10(d['Mvir'][w]), cmap='plasma',
+                        vmin=10, vmax=14,
+                        marker=mark, edgecolors='none', zorder=10,
+                        label=label)
 
     if sc is not None:
         cbar = plt.colorbar(sc, ax=ax, pad=0.02, aspect=30)
         cbar.set_label(r'$\log_{10}(M_{\rm vir}/M_{\odot})$')
 
     ax.set_xscale('log')
-    ax.set_xlim(0.5, 300)
+    ax.set_xlim(0.5, 1e4)
     ax.set_ylim(-0.05, 1.05)
     ax.set_xlabel(r'$t_{\rm cool}/t_{\rm ff}$')
     ax.set_ylabel(r'$f_{\rm inflow}$')
-
     _standard_legend(ax, loc='upper right')
     fig.tight_layout()
-
     save_figure(fig, os.path.join(OUTPUT_DIR,
                 'PrecipitationFraction' + OUTPUT_FORMAT))
+
+    # ------------------------------------------------------------------ #
+    # Figure 8b: Median t_cool/t_ff vs halo mass                          #
+    # ------------------------------------------------------------------ #
+    fig2, ax2 = plt.subplots()
+
+    ax2.axhline(y=np.log10(10), color='goldenrod', ls='--', lw=2,
+                label=r'$t_{\rm cool}/t_{\rm ff} = 10$ (threshold)')
+    ax2.axhspan(np.log10(5), np.log10(20), alpha=0.10, color='goldenrod')
+
+
+    for (snap, label), zcol, mark in zip(snap_list, zcolors, markers):
+        if snap not in snapdata:
+            continue
+        d     = snapdata[snap]
+        ratio = d['tcool_over_tff']
+        logm  = np.log10(d['Mvir'])
+        base  = np.where(
+            (d['Regime'] == 0) & (ratio > 0) & np.isfinite(ratio) &
+            (d['Type'] == 0)  & (d['Mvir'] > 1e10)
+        )[0]
+
+        meds, p16, p84, xc = [], [], [], []
+        for mlo, mhi in zip(mass_bins[:-1], mass_bins[1:]):
+            inbin = base[(logm[base] > mlo) & (logm[base] <= mhi)]
+            if len(inbin) < 10:
+                continue
+            lr = np.log10(ratio[inbin])
+            lr = lr[np.isfinite(lr)]
+            if len(lr) < 5:
+                continue
+            meds.append(np.median(lr))
+            p16.append(np.percentile(lr, 16))
+            p84.append(np.percentile(lr, 84))
+            xc.append(0.5 * (mlo + mhi) + 10)   # convert to log10(M/Msun)
+
+        if not meds:
+            continue
+        xc   = np.array(xc)
+        meds = np.array(meds)
+        p16  = np.array(p16)
+        p84  = np.array(p84)
+
+        ax2.fill_between(xc, p16, p84, alpha=0.25, color=zcol)
+        ax2.plot(xc, meds, color=zcol, lw=2, marker=mark,
+                 ms=10, label=label)
+
+    ax2.set_xlabel(r'$\log_{10}(M_{\rm vir}/M_{\odot})$')
+    ax2.set_ylabel(r'$\log_{10}(t_{\rm cool}/t_{\rm ff})$')
+    _standard_legend(ax2, loc='best')
+    fig2.tight_layout()
+    save_figure(fig2, os.path.join(OUTPUT_DIR,
+                'PrecipitationFractionMassTrend' + OUTPUT_FORMAT))
 
 
 # ========================== PLOT 9: CGM FRACTIONS & DEPLETION ==========================
@@ -8078,7 +8140,7 @@ def plot_32_hi_mass_function():
         )
 
         # Model line with bootstrap shading
-        good = np.isfinite(phi)
+        good = np.isfinite(phi) & np.isfinite(phi_lo) & np.isfinite(phi_hi)
         lw = 3.5 if i == 0 else 2.0
         ax.plot(centers[good], phi[good], color=model['color'], lw=lw,
                 label=model['label'], zorder=10 - i)
@@ -8287,7 +8349,7 @@ def plot_33_h2_mass_function():
         )
 
         # Model line with bootstrap shading
-        good = np.isfinite(phi)
+        good = np.isfinite(phi) & np.isfinite(phi_lo) & np.isfinite(phi_hi)
         lw = 3.5 if i == 0 else 2.0
         ax.plot(centers[good], phi[good], color=model['color'], lw=lw,
                 label=model['label'], zorder=10 - i)

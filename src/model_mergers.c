@@ -463,10 +463,11 @@ void collisional_starburst_recipe(const double mass_ratio, const int merger_cent
             } else {
                 double z_term = pow(1.0 + z, run_params->RedshiftPowerLawExponent);
                 double v_term;
-                if (vc < V_CRIT) {
-                    v_term = pow(vc / V_CRIT, -3.2);
+                const double vc_floored = (vc < 1.0) ? 1.0 : vc;  /* Floor at 1 km/s */
+                if (vc_floored < V_CRIT) {
+                    v_term = pow(vc_floored / V_CRIT, -3.2);
                 } else {
-                    v_term = pow(vc / V_CRIT, -1.0);
+                    v_term = pow(vc_floored / V_CRIT, -1.0);
                 }
                 double scaling_factor = z_term * v_term;
                 double eta_reheat = run_params->FeedbackReheatingEpsilon * scaling_factor;
@@ -503,17 +504,18 @@ void collisional_starburst_recipe(const double mass_ratio, const int merger_cent
                 } else {
                     double z_term = pow(1.0 + z, run_params->RedshiftPowerLawExponent);
                     double v_term;
-                    if (vc < V_CRIT) {
-                        v_term = pow(vc / V_CRIT, -3.2);
+                    const double vc_floored = (vc < 1.0) ? 1.0 : vc;  /* Floor at 1 km/s */
+                    if (vc_floored < V_CRIT) {
+                        v_term = pow(vc_floored / V_CRIT, -3.2);
                     } else {
-                        v_term = pow(vc / V_CRIT, -1.0);
+                        v_term = pow(vc_floored / V_CRIT, -1.0);
                     }
                     double scaling_factor = z_term * v_term;
-                    
-                    double E_FB = run_params->FeedbackEjectionEfficiency * scaling_factor * 
+
+                    double E_FB = run_params->FeedbackEjectionEfficiency * scaling_factor *
                                   0.5 * stars * (run_params->EtaSNcode * run_params->EnergySNcode);
                     double E_lift = 0.5 * reheated_mass * vc * vc;
-                    
+
                     if(E_FB > E_lift) {
                         ejected_mass = (E_FB - E_lift) / (0.5 * vc * vc);
                     } else {
@@ -576,6 +578,18 @@ void collisional_starburst_recipe(const double mass_ratio, const int merger_cent
 
     // update from feedback
     update_from_feedback(merger_centralgal, centralgal, reheated_mass, ejected_mass, metallicity, galaxies, run_params);
+
+    // Clamp H2/H1 after gas has been consumed and ejected, so any chained merger
+    // or disk-instability check that reads H2gas gets a physically consistent value.
+    if (run_params->SFprescription == 1 || run_params->SFprescription == 3 ||
+        run_params->SFprescription == 4 || run_params->SFprescription == 5 ||
+        run_params->SFprescription == 6 || run_params->SFprescription == 7) {
+        if(galaxies[merger_centralgal].H2gas > galaxies[merger_centralgal].ColdGas)
+            galaxies[merger_centralgal].H2gas = galaxies[merger_centralgal].ColdGas;
+        galaxies[merger_centralgal].H1gas = (galaxies[merger_centralgal].ColdGas * 0.74)
+                                            - galaxies[merger_centralgal].H2gas;
+        if(galaxies[merger_centralgal].H1gas < 0.0) galaxies[merger_centralgal].H1gas = 0.0;
+    }
 
     // check for disk instability
     if(run_params->DiskInstabilityOn && mode == 0) {
