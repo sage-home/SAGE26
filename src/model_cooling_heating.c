@@ -364,9 +364,11 @@ double cooling_recipe_hot(const int gal, const double dt, struct GALAXY *galaxie
                 f_stream = pow(mass_ratio, -4.0/3.0) * z_factor;
             }
             
-            // Ensure physical bounds
-            // Cap at 0.5 (50%) to account for partial heating/mixing of cold streams
-            // as they penetrate through the hot medium
+            // Ensure physical bounds.
+            // f_stream can exceed 1 in the high-z hot regime: at M_vir = M_shock the
+            // formula gives f_stream = (1+z)/2, which reaches 2.0 at z=3. Capping at
+            // 1.0 prevents a negative hot-halo component in Eq. 17 (m'_hot = (1-f_stream)*m_hot).
+            // The floor at 0.0 guards against any negative rounding artefacts.
             if(f_stream > 1.0) f_stream = 1.0;
             if(f_stream < 0.0) f_stream = 0.0;
             

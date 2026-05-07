@@ -111,7 +111,7 @@ Examples:
     )
 
     parser.add_argument('input_pattern', nargs='?',
-                        default='./output/millennium/model_*.hdf5',
+                        default='./output/microuchuu/model_*.hdf5',
                         help='Path pattern to model HDF5 files (default: ./output/millennium/model_*.hdf5)')
 
     parser.add_argument('--first-snap', type=int, default=None,
@@ -1010,9 +1010,9 @@ if __name__ == '__main__':
             continue
 
         if i >= len(z_bins) - 4:
-            mass_bins = np.arange(8.0, 12.5, 0.1)
+            mass_bins = np.arange(8.0, 13.5, 0.1)
         else:
-            mass_bins = np.arange(7.2, 12.5, 0.1)
+            mass_bins = np.arange(7.2, 13.5, 0.1)
         mass_centers = mass_bins[:-1] + 0.05
 
         all_snapshots = []
@@ -1093,7 +1093,7 @@ if __name__ == '__main__':
         # Plot satellites
         ax.plot(mass_centers[valid_sat], sat_frac_mean[valid_sat], color=colors[i], linestyle=':', linewidth=2, alpha=0.25)
 
-    ax.set_xlim(8.0, 12.2)
+    ax.set_xlim(8.0, 12.5)
     ax.set_ylim(0, 0.8)
     ax.set_xlabel(r'$\log_{10} M_* [M_\odot]$', fontsize=14)
     ax.set_ylabel('Quenched Fraction', fontsize=14)

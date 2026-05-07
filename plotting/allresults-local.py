@@ -130,7 +130,7 @@ Examples:
     )
 
     parser.add_argument('input_pattern', nargs='?',
-                        default='./output/millennium/model_*.hdf5',
+                        default='./output/microuchuu/model_*.hdf5',
                         help='Path pattern to model HDF5 files (default: ./output/millennium/model_*.hdf5)')
 
     parser.add_argument('-s', '--snapshot', type=int, default=None,
@@ -990,7 +990,7 @@ if __name__ == '__main__':
     ax.xaxis.set_minor_locator(plt.MultipleLocator(0.05))
     ax.yaxis.set_minor_locator(plt.MultipleLocator(0.25))
     
-    plt.axis([9.5, 12.0, 0.0, 1.05])
+    plt.axis([9.5, 12.5, 0.0, 1.05])
     
     leg = plt.legend(loc='lower right')
     leg.draw_frame(False)  # Don't want a box frame

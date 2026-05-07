@@ -5,7 +5,7 @@ output/
 input/
 tests/test_build/
 tests/test_output/
-plotting/presentation_plots/
+plotting/random_plotting_scripts/
 
 
 *.o

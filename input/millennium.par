@@ -4,7 +4,7 @@
 
 FileNameGalaxies   model
 %OutputDir         /<absolute>/<root>/<path>/sage-model/output/millennium/
-OutputDir          output/millennium_ffb_h2/
+OutputDir          output/millennium_mbk/
 
 FirstFile         0
 LastFile          7
@@ -25,7 +25,7 @@ OutputFormat      sage_hdf5 % sets the desired output format. Either 'sage_binar
 %------------------------------------------
 
 TreeName              trees_063   % assumes the trees are named TreeName.n where n is the file number
-TreeType              lhalo_binary % either 'genesis_lhalo_hdf5' or 'lhalo_binary'
+TreeType              lhalo_binary % 'genesis_lhalo_hdf5', 'lhalo_binary', 'consistentrees_ascii', 'consistentrees_hdf5', 'lhalo_ascii', 'lhalo_hdf5' 
 NumSimulationTreeFiles 8 % Number of files the trees are split over. This can be different to `FirstFile` -> `LastFile` range.
 
 %SimulationDir      /<absolute>/<root>/<path>/sage-home/sage-model/input/millennium/trees/
@@ -57,7 +57,7 @@ CGMDensityProfile           0   %0: uniform; 1: NFW; 2: beta-profile (β=2/3)
 FIREmodeOn                  1   %0: switch off
 
 ConcentrationOn             3   %0: off; 1: Ishiyama+21 lookup table; 2: Vmax/Vvir from simulation; 3: Vmax/Vvir + infall freeze for satellites
-FeedbackFreeModeOn          6   %0: off; 1: Li+24 sigmoid; 2: BK25 (Ishiyama+21 conc); 3: BK25 (ConcentrationOn method); 4: BK25 + log-normal c scatter; 5: Li+24 sharp; 6: Li+24 sigmoid + H2 SF; 7: BK25 log-normal c scatter + H2 SF
+FeedbackFreeModeOn          7   %0: off; 1: Li+24 sigmoid; 2: BK25 (Ishiyama+21 conc); 3: BK25 (ConcentrationOn method); 4: BK25 + log-normal c scatter; 5: Li+24 sharp; 6: Li+24 sigmoid + H2 SF; 7: BK25 log-normal c scatter + H2 SF
 
 BulgeSizeOn                 3   %0: switch off; 1: Shen eq. 33; 2: Shen eq. 32; 3: Tonini
 SaveFullSFH                 1   %0: switch off

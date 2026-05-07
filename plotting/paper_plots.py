@@ -877,6 +877,110 @@ def ffb_fraction(Mvir_msun, z, delta_log_M=0.15):
     return 1.0 / (1.0 + np.exp(-x))
 
 
+# -------- MBK25 (Boylan-Kolchin 2025) theoretical FFB fraction --------
+
+try:
+    from colossus.cosmology import cosmology as _colossus_cosmology
+    from colossus.halo import concentration as _colossus_conc
+    _colossus_cosmology.setCosmology('custom_millennium', flat=True,
+                                     H0=73.0, Om0=OMEGA_M, Ob0=0.045,
+                                     sigma8=0.90, ns=1.0, relspecies=False)
+    _HAS_COLOSSUS = True
+except Exception:
+    _HAS_COLOSSUS = False
+
+
+def _delta_vir_bn98(z):
+    """Bryan & Norman 1998 virial overdensity (flat ΛCDM)."""
+    Ez2 = OMEGA_M * (1.0 + z)**3 + OMEGA_L
+    x = OMEGA_M * (1.0 + z)**3 / Ez2 - 1.0
+    return 18.0 * np.pi**2 + 82.0 * x - 39.0 * x**2
+
+
+def _rvir_m(Mvir_msun, z):
+    """Virial radius [m] from M_vir [M_sun] using Bryan & Norman overdensity."""
+    H0_si = HUBBLE_H * 1.0e5 / 3.085678e22   # H_0 in s^-1
+    Ez = np.sqrt(OMEGA_M * (1.0 + z)**3 + OMEGA_L)
+    rho_crit = 3.0 * (H0_si * Ez)**2 / (8.0 * np.pi * 6.674e-11)
+    delta = _delta_vir_bn98(z)
+    return (3.0 * Mvir_msun * 1.989e30 / (4.0 * np.pi * delta * rho_crit))**(1.0 / 3.0)
+
+
+# g_crit = G * 3100 M_sun / pc^2 (BK25 Table 1)
+_G_CRIT_SI = 6.674e-11 * 3100.0 * 1.989e30 / (3.085678e16)**2
+
+
+def _c_ishiyama21(Mvir_msun, z):
+    """
+    Mean Ishiyama+21 concentration (200c) for an array of M_vir [M_sun] at redshift z.
+    Falls back to a Bullock+01 power-law if colossus is not available.
+    """
+    M_h = np.asarray(Mvir_msun) * HUBBLE_H   # M_sun/h, as colossus expects
+    if _HAS_COLOSSUS:
+        try:
+            c = _colossus_conc.concentration(M_h, '200c', z, model='ishiyama21')
+            return np.maximum(np.atleast_1d(np.asarray(c, dtype=float)), 1.0)
+        except Exception:
+            pass
+    # Fallback power-law approximation (Bullock+01 style)
+    c = 9.0 / (1.0 + z) * (M_h / 1.0e12)**(-0.13)
+    return np.maximum(c, 1.0)
+
+
+def ffb_fraction_mbk25(Mvir_msun, z, sigma_c=0.2):
+    """
+    MBK25 FFB fraction via the Boylan-Kolchin 2025 maximum-acceleration criterion.
+
+    g_max = G M_vir / R_vir^2 * c^2 / (2 mu(c)),  mu(c) = ln(1+c) - c/(1+c)
+    FFB when g_max > g_crit = G * 3100 M_sun / pc^2  (BK25 Table 1).
+
+    With sigma_c > 0, concentration scatters log-normally around the Ishiyama+21
+    mean (matching FeedbackFreeModeOn=4 in the C code):
+        f_ffb(M, z) = P(c > c_thresh) = norm.sf((ln c_thresh - ln c_mean) / sigma_c)
+    With sigma_c = 0, returns a sharp step function (FeedbackFreeModeOn=2).
+
+    Parameters
+    ----------
+    Mvir_msun : array_like  Halo virial mass [M_sun].
+    z         : float       Redshift.
+    sigma_c   : float       Log-normal scatter in ln(c); 0.2 matches BK25 mode 4.
+    """
+    from scipy.optimize import brentq
+    from scipy.stats import norm as _snorm
+
+    Mvir_msun = np.atleast_1d(np.asarray(Mvir_msun, dtype=float))
+    c_mean = _c_ishiyama21(Mvir_msun, z)
+    Rvir = _rvir_m(Mvir_msun, z)
+    g_vir = 6.674e-11 * Mvir_msun * 1.989e30 / Rvir**2
+
+    if sigma_c == 0.0:
+        mu = np.log(1.0 + c_mean) - c_mean / (1.0 + c_mean)
+        g_max = g_vir * c_mean**2 / (2.0 * mu)
+        return (g_max > _G_CRIT_SI).astype(float)
+
+    f = np.zeros(len(Mvir_msun))
+    for i in range(len(Mvir_msun)):
+        gv = float(g_vir[i])
+
+        def _obj(c_val):
+            mu = np.log(1.0 + c_val) - c_val / (1.0 + c_val)
+            return gv * c_val**2 / (2.0 * mu) - _G_CRIT_SI
+
+        if _obj(1.0) > 0.0:       # even c=1 exceeds g_crit
+            f[i] = 1.0
+            continue
+        if _obj(200.0) < 0.0:     # even c=200 is below g_crit
+            f[i] = 0.0
+            continue
+        try:
+            c_thresh = brentq(_obj, 1.0, 200.0, xtol=1e-3, rtol=1e-4)
+            f[i] = _snorm.sf((np.log(c_thresh) - np.log(float(c_mean[i]))) / sigma_c)
+        except ValueError:
+            f[i] = 0.0
+
+    return f
+
+
 # ========================== FIGURE UTILITIES ==========================
 
 def save_figure(fig, filepath):
@@ -3916,14 +4020,67 @@ def plot_13_ffb_vs_redshift(snapdata):
     """
     print('Plot 13: FFB fraction vs redshift')
 
+    # Target redshifts (defined early so we can pre-load only the needed snaps)
+    redshift_targets = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+    needed_snaps = sorted({np.argmin(np.abs(np.array(REDSHIFTS) - z_t))
+                           for z_t in redshift_targets})
+
+    # Load MBK25 smooth simulation data (square markers)
+    snapdata_bk25 = {}
+    if os.path.exists(FFB_BK25_SMOOTH_DIR):
+        print('  Loading MBK25 smooth snapshots...')
+        snapdata_bk25 = load_snapshots(FFB_BK25_SMOOTH_DIR, needed_snaps)
+
+    def _bin_ffb(d):
+        """Bin FFB fraction vs halo mass. Returns (centres, fracs, ffb_errs, mass_errs)."""
+        central = d['Type'] == 0
+        Mvir_d = d['Mvir'][central]
+        ffb_d = d['FFBRegime'][central].astype(float)
+        pos = Mvir_d > 0
+        lM = np.log10(Mvir_d[pos])
+        ffb_d = ffb_d[pos]
+        bin_edges = np.linspace(8, 14, 17)
+        fracs, ferrs, merrs, centres = [], [], [], []
+        for j in range(len(bin_edges) - 1):
+            mask = (lM >= bin_edges[j]) & (lM < bin_edges[j + 1])
+            n = np.sum(mask)
+            if n < 10:
+                continue
+            vals = ffb_d[mask]
+            frac = np.mean(vals)
+            if frac == 0.0 or frac == 1.0:
+                zs = 1.0
+                denom = 1 + zs**2 / n
+                centre_w = (frac + zs**2 / (2 * n)) / denom
+                margin = zs * np.sqrt((frac * (1 - frac) + zs**2 / (4 * n)) / n) / denom
+                el = max(0, frac - (centre_w - margin))
+                eh = max(0, (centre_w + margin) - frac)
+            else:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    res = stats.bootstrap((vals,), np.mean, n_resamples=1000,
+                                          confidence_level=0.6827, method='percentile')
+                el = max(0, frac - res.confidence_interval.low)
+                eh = max(0, res.confidence_interval.high - frac)
+            fracs.append(frac)
+            ferrs.append([el, eh])
+            masses = lM[mask]
+            mm = np.mean(masses)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                mres = stats.bootstrap((masses,), np.mean, n_resamples=1000,
+                                        confidence_level=0.6827, method='percentile')
+            merrs.append([max(0, mm - mres.confidence_interval.low),
+                          max(0, mres.confidence_interval.high - mm)])
+            centres.append(mm)
+        return centres, fracs, ferrs, merrs
+
     fig, ax = plt.subplots()
 
     # Halo mass range (log10 M_sun)
     log_Mvir = np.linspace(8, 14, 500)
     Mvir = 10.0**log_Mvir
 
-    # Target redshifts
-    redshift_targets = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
     cmap = plt.cm.plasma
     # Truncate colormap to avoid lightest yellow
     colors = [cmap(i / (len(redshift_targets) - 1) * 0.85)
@@ -3943,84 +4100,27 @@ def plot_13_ffb_vs_redshift(snapdata):
                 label=f'z = {actual_z:.2f}')
         ax.axvline(np.log10(M_thresh), color=color, ls=':', alpha=1.0, lw=1)
 
-        # Simulation data
-        if snap_idx not in snapdata:
-            continue
-        d = snapdata[snap_idx]
+        # MBK25 theoretical curve (log-normal concentration scatter, sigma_c=0.2)
+        f_mbk25 = ffb_fraction_mbk25(Mvir, actual_z, sigma_c=0.2)
+        ax.plot(log_Mvir, f_mbk25, color=color, lw=2, ls='--', alpha=0.8)
 
-        central = d['Type'] == 0
-        Mvir_data = d['Mvir'][central]
-        ffb_data = d['FFBRegime'][central].astype(float)
+        # Li+24 simulation data — circles
+        if snap_idx in snapdata:
+            centres, fracs, ferrs, merrs = _bin_ffb(snapdata[snap_idx])
+            if len(centres) > 0:
+                ax.errorbar(centres, fracs,
+                            xerr=np.array(merrs).T, yerr=np.array(ferrs).T,
+                            fmt='o', color=color, markersize=8, capsize=3,
+                            alpha=0.6, markeredgecolor='k', markeredgewidth=0.3)
 
-        pos = Mvir_data > 0
-        log_Mvir_data = np.log10(Mvir_data[pos])
-        ffb_data = ffb_data[pos]
-
-        # Bin by log Mvir and compute FFB fraction
-        bin_edges = np.linspace(8, 14, 17)
-
-        ffb_fracs = []
-        ffb_errs = []
-        mass_errs = []
-        valid_bins = []
-
-        for i in range(len(bin_edges) - 1):
-            in_bin = ((log_Mvir_data >= bin_edges[i])
-                      & (log_Mvir_data < bin_edges[i + 1]))
-            n_in_bin = np.sum(in_bin)
-
-            if n_in_bin < 10:
-                continue
-
-            bin_vals = ffb_data[in_bin]
-            frac = np.mean(bin_vals)
-
-            if frac == 0.0 or frac == 1.0:
-                # Wilson score interval for edge cases
-                zs = 1.0  # 1-sigma
-                n = n_in_bin
-                denom = 1 + zs**2 / n
-                centre = (frac + zs**2 / (2 * n)) / denom
-                margin = (zs * np.sqrt(
-                    (frac * (1 - frac) + zs**2 / (4 * n)) / n) / denom)
-                err_low = max(0, frac - (centre - margin))
-                err_high = max(0, (centre + margin) - frac)
-            else:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    res = stats.bootstrap(
-                        (bin_vals,), np.mean,
-                        n_resamples=1000,
-                        confidence_level=0.6827,
-                        method='percentile')
-                err_low = max(0, frac - res.confidence_interval.low)
-                err_high = max(0, res.confidence_interval.high - frac)
-
-            ffb_fracs.append(frac)
-            ffb_errs.append([err_low, err_high])
-
-            bin_masses = log_Mvir_data[in_bin]
-            mean_mass = np.mean(bin_masses)
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                mass_res = stats.bootstrap(
-                    (bin_masses,), np.mean,
-                    n_resamples=1000,
-                    confidence_level=0.6827,
-                    method='percentile')
-            m_err_lo = max(0, mean_mass - mass_res.confidence_interval.low)
-            m_err_hi = max(0, mass_res.confidence_interval.high - mean_mass)
-            mass_errs.append([m_err_lo, m_err_hi])
-            valid_bins.append(mean_mass)
-
-        if len(valid_bins) > 0:
-            ffb_errs = np.array(ffb_errs).T
-            mass_errs = np.array(mass_errs).T
-            ax.errorbar(valid_bins, ffb_fracs,
-                        xerr=mass_errs, yerr=ffb_errs,
-                        fmt='o', color=color, markersize=8, capsize=3,
-                        alpha=0.6, markeredgecolor='k',
-                        markeredgewidth=0.3)
+        # MBK25 smooth simulation data — squares
+        if snap_idx in snapdata_bk25:
+            centres, fracs, ferrs, merrs = _bin_ffb(snapdata_bk25[snap_idx])
+            if len(centres) > 0:
+                ax.errorbar(centres, fracs,
+                            xerr=np.array(merrs).T, yerr=np.array(ferrs).T,
+                            fmt='s', color=color, markersize=8, capsize=3,
+                            alpha=0.6, markeredgecolor='k', markeredgewidth=0.3)
 
     ax.axhline(0.5, color='gray', ls='--', alpha=1.0, lw=1)
 
@@ -4029,7 +4129,23 @@ def plot_13_ffb_vs_redshift(snapdata):
     ax.set_xlim(8.25, 13)
     ax.set_ylim(0, 1)
 
-    _standard_legend(ax, loc='upper left')
+    # Proxy artists: line styles (theory) and marker shapes (simulation)
+    from matplotlib.lines import Line2D
+    kw_mk = dict(lw=0, markersize=8, markeredgecolor='k', markeredgewidth=0.3, alpha=0.6)
+    # proxy_li24_line  = Line2D([0], [0], color='gray', lw=2, ls='-',
+    #                           label='Li+24')
+    # proxy_mbk25_line = Line2D([0], [0], color='gray', lw=2, ls='--',
+    #                           label=r'MBK25 (theory, log-normal $c$)')
+    proxy_li24_pts   = Line2D([0], [0], color='gray', marker='o',
+                              label='Li+24', **kw_mk)
+    proxy_mbk25_pts  = Line2D([0], [0], color='gray', marker='s',
+                              label='MBK25', **kw_mk)
+    style_handles = [
+                     proxy_li24_pts, proxy_mbk25_pts]
+    z_handles, z_labels = ax.get_legend_handles_labels()
+    _standard_legend(ax, loc='upper left',
+                     handles=style_handles + z_handles,
+                     labels=[h.get_label() for h in style_handles] + z_labels)
     fig.tight_layout()
 
     save_figure(fig, os.path.join(OUTPUT_DIR,
