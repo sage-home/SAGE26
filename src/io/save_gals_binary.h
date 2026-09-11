@@ -104,8 +104,8 @@ extern "C" {
       float MetalsCGMgas;
       float tcool;
       float tff;
-      float tcool_over_tff;
-      float MachNumber;
+      // float tcool_over_tff;
+      // float MachNumber;
       float tdeplete;
       float H2DepletionTime_Gyr;
       float RcoolToRvir;
@@ -116,6 +116,7 @@ extern "C" {
       float mdot_stream;
       double g_max;
       float r_heat;          /* AGN radio-mode heating radius [Mpc/h], capped at Rvir in the CGM regime */
+      float CoolingRate;     /* Cooling rate of the CGM gas in the halo [Msun/yr] */
     };
 
     /* Proto-Types */

@@ -228,12 +228,6 @@
     X(tff, tff, float, H5T_NATIVE_FLOAT, \
       "Free-fall time of the CGM gas in the halo.", \
       "Myr") \
-    X(tcool_over_tff, tcool_over_tff, float, H5T_NATIVE_FLOAT, \
-      "Ratio of cooling time to free-fall time of the CGM gas in the halo.", \
-      "Unitless") \
-    X(MachNumber, MachNumber, float, H5T_NATIVE_FLOAT, \
-      "Inflow Mach number of the volume-filling CGM phase, from Stern et al. (2019) Eq 28: t_cool/t_ff = 0.845/Mach. Mach > 1 means the phase is supersonic and free-falling. -1 if unset.", \
-      "Unitless") \
     X(tdeplete, tdeplete, float, H5T_NATIVE_FLOAT, \
       "Depletion time of the CGM gas reservoir.", \
       "Myr") \
@@ -272,4 +266,7 @@
       "1.0e10 Msun/h") \
     X(r_heat, r_heat, float, H5T_NATIVE_FLOAT, \
       "AGN radio-mode heating radius (ratchet, capped at Rvir in the CGM regime). Cooling is suppressed at r < r_heat.", \
-      "Mpc/h")
+      "Mpc/h")\
+    X(CoolingRate, CoolingRate, float, H5T_NATIVE_FLOAT, \
+      "Cooling rate of the CGM gas in the halo.", \
+      "Msun/Gyr")

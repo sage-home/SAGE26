@@ -203,10 +203,11 @@ struct GALAXY
     /* Cooling diagnostics (set each snapshot by the active cooling recipe) */
     float tcool;             /* cooled gas rate [Msun/Gyr] */
     float tff;               /* free-fall time at the precipitation radius [Gyr] */
-    float tcool_over_tff;    /* ratio used for precipitation threshold test */
-    float MachNumber;        /* inflow Mach number of the volume-filling CGM phase,
-                              * Stern et al. (2019) Eq 28: t_cool/t_ff = 0.845 / Mach.
-                              * h-corrected, unlike tcool_over_tff (see CHANGELOG). -1 if unset. */
+    float CoolingRate;       /* cooling rate [Msun/Gyr] */
+    // float tcool_over_tff;    /* ratio used for precipitation threshold test */
+    // float MachNumber;        /* inflow Mach number of the volume-filling CGM phase,
+                            //   * Stern et al. (2019) Eq 28: t_cool/t_ff = 0.845 / Mach.
+                            //   * h-corrected, unlike tcool_over_tff (see CHANGELOG). -1 if unset. */
     float tdeplete;          /* gas depletion timescale from the current SF episode [code time units] */
     float H2DepletionTime_Gyr; /* molecular depletion time from K13 prescription [Gyr] */
 

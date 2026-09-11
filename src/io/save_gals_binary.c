@@ -426,8 +426,8 @@ static int32_t prepare_galaxy_for_output(struct GALAXY *g, struct GALAXY_OUTPUT 
     o->MetalsCGMgas = g->MetalsCGMgas;
     o->tcool = g->tcool;
     o->tff = g->tff;
-    o->tcool_over_tff = g->tcool_over_tff;
-    o->MachNumber = g->MachNumber;
+    // o->tcool_over_tff = g->tcool_over_tff;
+    // o->MachNumber = g->MachNumber;
     o->tdeplete = g->tdeplete;
     o->H2DepletionTime_Gyr = g->H2DepletionTime_Gyr;
     o->RcoolToRvir = g->RcoolToRvir;
@@ -438,6 +438,7 @@ static int32_t prepare_galaxy_for_output(struct GALAXY *g, struct GALAXY_OUTPUT 
     o->mdot_stream = g->mdot_stream * run_params->UnitMass_in_g / run_params->UnitTime_in_s * SEC_PER_YEAR / SOLAR_MASS;
     o->g_max = g->g_max;
     o->r_heat = g->r_heat;
+    o->CoolingRate = g->CoolingRate;
 
     return EXIT_SUCCESS;
 }

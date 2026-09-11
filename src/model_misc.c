@@ -166,8 +166,8 @@ void init_galaxy(const int p, const int halonr, int *galaxycounter, const struct
     galaxies[p].MassLoading = 0.0;
     galaxies[p].tcool = -1.0;
     galaxies[p].tff = -1.0;
-    galaxies[p].tcool_over_tff = -1.0;
-    galaxies[p].MachNumber = -1.0;
+    // galaxies[p].tcool_over_tff = -1.0;
+    // galaxies[p].MachNumber = -1.0;
     galaxies[p].tdeplete = -1.0;
     galaxies[p].H2DepletionTime_Gyr = -1.0f;
 

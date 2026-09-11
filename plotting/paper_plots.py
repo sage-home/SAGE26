@@ -12253,12 +12253,12 @@ Z0_PLOTS = {
 }
 
 EVOLUTION_PLOTS = {
-    7: plot_7_tcool_tff_distribution,
-    71: plot_7b_inflow_transition_fraction,
-    8: plot_8_precipitation_fraction,
-    9: plot_9_cgm_fractions_depletion,
-    91: plot_9b_cgm_fractions_grid,
-    92: plot_9c_depletion_grid,
+    # 7: plot_7_tcool_tff_distribution,
+    # 71: plot_7b_inflow_transition_fraction,
+    # 8: plot_8_precipitation_fraction,
+    # 9: plot_9_cgm_fractions_depletion,
+    # 91: plot_9b_cgm_fractions_grid,
+    # 92: plot_9c_depletion_grid,
     10: plot_10_sfe_ffb,
     11: plot_11_ffb_properties,
     111: plot_11b_ffb_histograms,
