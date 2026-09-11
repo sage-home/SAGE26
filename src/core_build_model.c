@@ -256,7 +256,7 @@ static int join_galaxies_of_progenitors(const int halonr, const int ngalstart, i
                         galaxies[ngal].mergeIntoID = -1;
                         galaxies[ngal].MergTime = 999.9f;
 
-                        galaxies[ngal].DiskScaleRadius = get_disk_radius(halonr, ngal, halos, galaxies, run_params);
+                        galaxies[ngal].DiskScaleRadius = get_disk_radius(halonr, ngal, halos, galaxies);
                         get_bulge_radius(ngal, galaxies, run_params);
 
                         galaxies[ngal].Type = 0;

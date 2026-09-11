@@ -52,7 +52,7 @@ ReionizationOn              1   %0: switch off
 DiskInstabilityOn           1   %0: switch off; 1: bulge and BH growth through instabilities w. instability starbursts
 
 CGMrecipeOn                 1   %0: switch off
-CGMDensityProfile           0   %0: uniform; 1: NFW; 2: beta-profile (beta=2/3)
+CGMDensityProfile           0   %CGM gas density profile for precipitation: 0: uniform; 1: NFW; 2: beta-profile (beta=2/3); 3: Stern+21 analytic cooling flow (rho ~ r^-1.6 normalised to CGMgas, both timescales evaluated at R_circ = 0.05 Rvir where t_cool/t_ff is minimised, T^(s) = 1.2 T_vir)
 PrecipCriterionOn           1   %which factors of the Voit precipitation rate mdot = S((10-r)/2)*(M_CGM-M_eq)/t_ff apply: 0: neither, and no hand-over -- mdot = M_CGM/t_ff always; 1: both (default); 2: M_eq only (no f_inflow sigmoid); 3: sigmoid only (no condensation term); 4: neither, keeping the hand-over (the 2x2 reference); 5: SAGE16 cold accretion, mdot = M_CGM/(Rvir/Vvir), sqrt(2) faster than mode 0
 RegimeRandomMode            0   %0: fresh random draw each snapshot (original; borderline-mass galaxies thrash between regimes); 1: use persistent RegimeRandom assigned at galaxy creation (regime evolves smoothly with Mvir)
 FIREmodeOn                  1   %0: switch off

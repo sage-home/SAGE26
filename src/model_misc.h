@@ -151,8 +151,7 @@ extern "C" {
     /* functions in model_misc.c */
     extern void init_galaxy(const int p, const int halonr, int *galaxycounter, const struct halo_data *halos, struct GALAXY *galaxies, const struct params *run_params);
     extern double get_metallicity(const double gas, const double metals);
-    extern double get_disk_radius(const int halonr, const int p, const struct halo_data *halos, struct GALAXY *galaxies,
-                                  const struct params *run_params);
+    extern double get_disk_radius(const int halonr, const int p, const struct halo_data *halos, const struct GALAXY *galaxies);
     extern double get_bulge_radius(const int p, struct GALAXY *galaxies, const struct params *run_params);
     extern double dmax(const double x, const double y);
     extern void update_instability_bulge_radius(const int p, const double delta_mass,

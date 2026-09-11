@@ -925,6 +925,7 @@ static int32_t prepare_galaxy_for_hdf5_output(const struct GALAXY *g, struct sav
     save_info->buffer_output_gals[output_snap_idx].tcool[gals_in_buffer] = g->tcool;
     save_info->buffer_output_gals[output_snap_idx].tff[gals_in_buffer] = g->tff;
     save_info->buffer_output_gals[output_snap_idx].tcool_over_tff[gals_in_buffer] = g->tcool_over_tff;
+    save_info->buffer_output_gals[output_snap_idx].MachNumber[gals_in_buffer] = g->MachNumber;
     save_info->buffer_output_gals[output_snap_idx].tdeplete[gals_in_buffer] = g->tdeplete;
     save_info->buffer_output_gals[output_snap_idx].H2DepletionTime_Gyr[gals_in_buffer] = g->H2DepletionTime_Gyr;
     save_info->buffer_output_gals[output_snap_idx].RcoolToRvir[gals_in_buffer] = g->RcoolToRvir;
@@ -1303,7 +1304,7 @@ static int32_t write_header(hid_t file_id, const struct forest_info *forest_info
     CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "H2RadialNBins", run_params->H2RadialNBins, H5T_NATIVE_INT);
     CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "H2RadialRMaxFactor", run_params->H2RadialRMaxFactor, H5T_NATIVE_DOUBLE);
     CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "CGMDensityProfile", run_params->CGMDensityProfile, H5T_NATIVE_INT);
-    CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "PrecipCriterionOn", run_params->PrecipCriterionOn, H5T_NATIVE_INT);
+    // CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "PrecipCriterionOn", run_params->PrecipCriterionOn, H5T_NATIVE_INT);
     CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "RegimeRandomMode", run_params->RegimeRandomMode, H5T_NATIVE_INT);
     CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "ConcentrationOn", run_params->ConcentrationOn, H5T_NATIVE_INT);
     CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "RamPressureStrippingOn", run_params->RamPressureStrippingOn, H5T_NATIVE_INT);
@@ -1321,7 +1322,7 @@ static int32_t write_header(hid_t file_id, const struct forest_info *forest_info
     CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "MShockMsun", run_params->MShockMsun, H5T_NATIVE_DOUBLE);
     CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "ColdStreamCeilingOn", run_params->ColdStreamCeilingOn, H5T_NATIVE_INT);
     CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "StreamMassFactor", run_params->StreamMassFactor, H5T_NATIVE_DOUBLE);
-    CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "DiskRadiusFactor", run_params->DiskRadiusFactor, H5T_NATIVE_DOUBLE);
+    // CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "DiskRadiusFactor", run_params->DiskRadiusFactor, H5T_NATIVE_DOUBLE);
     CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "FeedbackReheatingEpsilon", run_params->FeedbackReheatingEpsilon, H5T_NATIVE_DOUBLE);
     CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "FeedbackEjectionEfficiency", run_params->FeedbackEjectionEfficiency, H5T_NATIVE_DOUBLE);
     CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "ReIncorporationFactor", run_params->ReIncorporationFactor, H5T_NATIVE_DOUBLE);

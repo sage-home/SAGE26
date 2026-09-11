@@ -427,6 +427,7 @@ static int32_t prepare_galaxy_for_output(struct GALAXY *g, struct GALAXY_OUTPUT 
     o->tcool = g->tcool;
     o->tff = g->tff;
     o->tcool_over_tff = g->tcool_over_tff;
+    o->MachNumber = g->MachNumber;
     o->tdeplete = g->tdeplete;
     o->H2DepletionTime_Gyr = g->H2DepletionTime_Gyr;
     o->RcoolToRvir = g->RcoolToRvir;

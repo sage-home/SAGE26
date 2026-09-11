@@ -34,6 +34,7 @@
 #define  HUBBLE      3.2407789e-18   /* H0/h [s^-1], i.e. 100 km/s/Mpc expressed in 1/s */
 
 #define  SEC_PER_MEGAYEAR   3.155e13 /* [s per Myr] */
+#define  SEC_PER_GIGAYEAR   3.155e16 /* [s per Gyr] */
 #define  SEC_PER_YEAR       3.155e7  /* [s per yr] */
 
 /* Code-unit conversions (see docs/physics/units.md): mass 10^10 Msun/h,

@@ -27,6 +27,7 @@ from random import sample, seed
 import h5py as h5
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.colors import LogNorm
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from scipy.stats import gaussian_kde, stats
@@ -1510,13 +1511,13 @@ if __name__ == '__main__':
         log10_stellar_mass = np.log10(StellarMass[w])
         mass_loading = MassLoading[w]
 
-        plt.scatter(Vvir[w], mass_loading, c='k', marker='x', s=1, alpha=0.9)
+        plt.scatter(np.log10(Vvir[w]), mass_loading, c='k', marker='x', s=1, alpha=0.9)
 
-        plt.xlabel(r'$V_{\mathrm{vir}}\ (\mathrm{km/s})$')
+        plt.xlabel(r'$\log_{10} V_{\mathrm{vir}}\ (\mathrm{km/s})$')
         plt.ylabel(r'$\eta_{\mathrm{reheat}} = \dot{M}_{\mathrm{reheat}} / \dot{M}_{\star}$')
 
-        plt.xlim(min(Vvir[w]), 300)
-        plt.ylim(0.01, max(mass_loading)*1.1)
+        # plt.xlim(min(np.log10(Vvir[w])), 2.477)
+        # plt.ylim(0.01, max(mass_loading)*1.1)
 
         plt.tight_layout()
 
@@ -1776,5 +1777,107 @@ if __name__ == '__main__':
     plt.tight_layout()
     outputFile = OutputDir + 'sfr_vs_halo_accretion_rate' + OutputFormat
     plt.savefig(outputFile, dpi=150)
+    print('Saved file to', outputFile, '\n')
+    plt.close()
+
+#--------------------------------------------------------
+
+    # Plotting tcool/tff vs Mvir
+
+    plt.figure()
+    ax = plt.subplot(111)
+
+    tcool = read_hdf(file_list, Snapshot, 'tcool')
+    Mvir = read_hdf(file_list, Snapshot, 'Mvir') *1.0e10 / Hubble_h # Convert to solar masses
+    Rvir = read_hdf(file_list, Snapshot, 'Rvir')
+    Regime = read_hdf(file_list, Snapshot, 'Regime')
+
+    # Cooled gas rate vs Mvir
+    w = np.where((Mvir > 0.0) & (tcool > 0.0) & (Rvir > 0.0))[0]
+
+    Rvir = Rvir[w]
+    log_Mvir = np.log10(Mvir)[w]
+    tcool = tcool[w]
+    Regime = Regime[w]
+    Tvir = Tvir[w]
+
+    print('  cooled gas rate vs Mvir sample stats:')
+    if tcool.size > 0:
+        print(f'    cooled gas rate: {tcool.min():.2f} to {tcool.max():.2f}')
+    else:
+        print('    no positive cooled gas rates found; skipping statistics for this plot')
+    
+    # print(f'  Plotting {len(w)} galaxies with Mvir > 0, tcool/tff > 0, and within 0.1 Rvir and CGM-regime.')
+
+    # Median line and 1-sigma shading
+    # bin_edges = np.arange(10.0, 12.5, 0.25)
+    # bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+    # digitized = np.digitize(log_Mvir[w], bin_edges)
+    # medians = [np.median(tcool_tff[w][digitized == i]) for i in range(1, len(bin_edges))]
+    # stds = [np.std(tcool_tff[w][digitized == i]) for i in range(1, len(bin_edges))]
+
+    # ax.fill_between(bin_centers, np.array(medians) - np.array(stds), np.array(medians) + np.array(stds), alpha=0.2, rasterized=True)
+    # ax.plot(bin_centers, medians, color='k', lw=2, label='Median ± 1σ')
+
+    cgm = Regime == 0
+    hot = Regime == 1
+    unclassified = ~(cgm | hot)
+    if np.any(cgm):
+        ax.scatter(log_Mvir[cgm], tcool[cgm], s=2, alpha=0.5,
+                   color='tab:blue', label='CGM regime', rasterized=True)
+    if np.any(hot):
+        ax.scatter(log_Mvir[hot], tcool[hot], s=2, alpha=0.5,
+                   color='tab:red', label='Hot regime', rasterized=True)
+    if np.any(unclassified):
+        temperature_points = ax.scatter(log_Mvir[unclassified], tcool[unclassified],
+                                         s=2, alpha=0.5, c=Tvir[unclassified],
+                                         cmap='viridis', norm=LogNorm(),
+                                         label='Unclassified',
+                                         rasterized=True)
+        colorbar = plt.colorbar(temperature_points, ax=ax, pad=0.02)
+        colorbar.set_label(r'$T_{\rm vir}$ (K)')
+    ax.set_yscale('log')
+
+    ax.set_xlabel(r'$\log_{10} M_{\rm vir}\ (M_{\odot})$')
+    ax.set_ylabel(r'$\mathrm{Cooling\ rate}\ (M_{\odot}\ \mathrm{Gyr}^{-1})$')
+    ax.legend(frameon=False)
+    # ax.set_xlim(10.0, 12.0)
+    # ax.set_ylim(0.0, 40.0)
+
+    plt.savefig(OutputDir + 'tcool_vs_mvir' + OutputFormat, dpi=150)
+    print('Saved file to', outputFile, '\n')
+    plt.close()
+
+#--------------------------------------------------------
+
+# CGM fraction vs Mvir
+
+    plt.figure()
+    ax = plt.subplot(111)
+
+    # CGM_gas = read_hdf(file_list, Snapshot, 'CGMgas') *1.0e10 / Hubble_h # Convert to solar masses
+    # Mvir = read_hdf(file_list, Snapshot, 'Mvir') *1.0e10 / Hubble_h # Convert to solar masses
+    Regime = read_hdf(file_list, Snapshot, 'Regime')
+
+    log_Mvir = Mvir
+    log_CGM = CGMgas
+
+    CGM_fraction = np.log10(CGMgas / Mvir) * 0.17  # Normalize by cosmic baryon fraction
+
+    print('  CGM fraction vs Mvir sample stats:')
+    print(f'    CGM fraction: {CGM_fraction.min():.4f} to {CGM_fraction.max():.4f}')
+
+    plt.scatter(np.log10(Mvir), CGM_fraction, s=2, alpha=0.5, rasterized=True)
+
+    ax.set_xlabel(r'$\log_{10} M_{\rm vir}\ (M_{\odot})$')
+    ax.set_ylabel(r'$\mathrm{CGM\ Fraction}$')
+    ax.set_xlim(10.0, 12.0)
+    ax.set_ylim(-2.5, 0.0)
+    # ax.set_xscale('log')
+    # ax.set_yscale('log')
+
+    # ax.set_xlim(1.0e10, 1.0e12)
+
+    plt.savefig(OutputDir + 'cgm_fraction_vs_mvir' + OutputFormat, dpi=150)
     print('Saved file to', outputFile, '\n')
     plt.close()

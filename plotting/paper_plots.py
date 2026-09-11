@@ -53,6 +53,8 @@ FFB_BK25_SMOOTH_DIR = './output/millennium_mbk_smooth/'
 FFB100_DIR          = './output/millennium_ffb100/'
 FFB_BK25_FFB100_DIR = './output/millennium_ffb100_mbk/'
 FFB_NOSIGMOID_DIR = './output/millennium_nosigmoid/'
+CGM_DYN_DIR = './output/millennium_cgmdyn/'
+DISK_SMOOTH_DIR = './output/millennium_disk2/'
 MINIUCHUU_DIR = './output/microuchuu/'
 MODEL_FILE = 'model_0.hdf5'
 OBS_DIR = './data/'
@@ -1398,25 +1400,33 @@ def load_shmr_observations():
         }
 
     # Taylor et al. 2020
-    # Format: (log_Mhalo, log_Mhalo_lo, log_Mhalo_hi,
-    #          M*/Mhalo, M*/Mhalo_lo, M*/Mhalo_hi)
+    # File columns, per its own header:
+    #   log10(m*/Msun)  log10(m*)_lo  log10(m*)_hi  Mhalo/1e12Msun  Mhalo_lo  Mhalo_hi
+    # Note the stellar mass is logarithmic and the halo mass is LINEAR in units of
+    # 1e12 Msun. This was previously read as (log_Mhalo, lo, hi, ratio, lo, hi), which
+    # swapped the two axes and log10'd a halo mass as though it were a ratio -- putting
+    # the points at log_Mvir ~ 10.3-10.6 with m*/Mvir up to 0.7, above the cosmic baryon
+    # fraction and so unphysical.
     path = os.path.join(OBS_DIR, 'morphology/Taylor20.dat')
     if os.path.exists(path):
-        d = np.loadtxt(path)
-        log_mvir = d[:, 0]
-        log_mvir_lo = d[:, 1]
-        log_mvir_hi = d[:, 2]
-        ratio = d[:, 3]
-        ratio_lo = d[:, 4]
-        ratio_hi = d[:, 5]
-        log_mstar = log_mvir + np.log10(ratio)
-        log_mstar_lo = log_mvir_lo + np.log10(ratio_lo)
-        log_mstar_hi = log_mvir_hi + np.log10(ratio_hi)
+        d = np.atleast_2d(np.loadtxt(path))
+        log_mstar = d[:, 0]
+        log_mstar_lo = d[:, 1]
+        log_mstar_hi = d[:, 2]
+        log_mvir = np.log10(d[:, 3]) + 12.0
+        log_mvir_lo = np.log10(d[:, 4]) + 12.0
+        log_mvir_hi = np.log10(d[:, 5]) + 12.0
+        log_ratio = log_mstar - log_mvir
         obs['taylor'] = {
             'mvir': log_mvir,
             'mstar': log_mstar,
             'xerr': [log_mvir - log_mvir_lo, log_mvir_hi - log_mvir],
             'yerr': [log_mstar - log_mstar_lo, log_mstar_hi - log_mstar],
+            # Ratio uncertainty takes the outer corners of both intervals, so the bar
+            # spans the full range the two independent measurements allow.
+            'ratio': log_ratio,
+            'ratio_err': [log_ratio - (log_mstar_lo - log_mvir_hi),
+                          (log_mstar_hi - log_mvir_lo) - log_ratio],
         }
 
     return obs
@@ -2569,6 +2579,140 @@ def plot_5_stellar_halo_mass(primary, vanilla):
     save_figure(fig, os.path.join(OUTPUT_DIR,
                 'StellarHaloMass' + OUTPUT_FORMAT))
 
+
+# ========================== PLOT 5b: STELLAR-TO-HALO MASS RATIO ==========================
+
+def plot_5b_stellar_halo_mass_ratio(primary, vanilla):
+    """
+    Stellar-to-halo mass ratio m*/M_vir against halo virial mass at z = 0.
+
+    The ratio form of plot 5. Dividing out M_vir removes the near-unit slope that
+    dominates the m*-M_vir plane and leaves the peak and the two falling wings, which is
+    where the models actually differ from each other and from the data.
+
+    Three curves: SAGE26 on Millennium and on miniUchuu, plus SAGE16. The two SAGE26
+    curves are the same physics on different resolutions -- miniUchuu resolves haloes
+    roughly 2.6x lighter -- so the low-mass end of the pair is a resolution check rather
+    than a physics comparison, and is drawn down to whatever each run resolves.
+
+    miniUchuu is read with its own mass conversion (its h differs from Millennium's);
+    read_snap_from_files() applies the MIN_PARTICLES cut to both.
+    """
+    print('Plot 5b: Stellar-to-halo mass ratio')
+
+    mvir_bins = np.arange(10.0, 15.0 + 0.1, 0.1)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+
+    def _ratio(d):
+        """log10(M_vir) and log10(m*/M_vir) for the resolved, star-forming-or-not set."""
+        if not d:
+            return None, None
+        w = (d['StellarMass'] > 0) & (d['Mvir'] > 0)
+        if not np.any(w):
+            return None, None
+        lm = np.log10(d['Mvir'][w])
+        return lm, np.log10(d['StellarMass'][w]) - lm
+
+    # --- SAGE26, Millennium ---
+    x, y = _ratio(primary)
+    if x is not None:
+        plot_binned_median_1sigma(
+            ax, x, y, mvir_bins,
+            color='steelblue', label='SAGE26 (Millennium)',
+            alpha=0.25, lw=3.5, min_count=50,
+            zorder_fill=Z_MODEL_BAND, zorder_line=Z_MODEL_LINE,
+        )
+
+    # --- SAGE26, miniUchuu ---
+    if os.path.exists(MINIUCHUU_DIR):
+        mu_files = find_model_files(MINIUCHUU_DIR)
+        mu = read_snap_from_files(mu_files, f'Snap_{MINIUCHUU_LAST_SNAP}',
+                                  ['StellarMass', 'Mvir'],
+                                  mass_convert=MINIUCHUU_MASS_CONVERT) if mu_files else {}
+        x, y = _ratio(mu)
+        if x is not None:
+            plot_binned_median_1sigma(
+                ax, x, y, mvir_bins,
+                color='darkorange', label='SAGE26 (miniUchuu)', ls='-.',
+                alpha=0.18, lw=3.0, min_count=50,
+                zorder_fill=Z_MODEL_BAND, zorder_line=Z_MODEL_LINE,
+            )
+        else:
+            print('  miniUchuu: no usable z = 0 snapshot -- curve omitted')
+
+    # --- SAGE16 ---
+    x, y = _ratio(vanilla)
+    if x is not None:
+        plot_binned_median_1sigma(
+            ax, x, y, mvir_bins,
+            color='purple', label='SAGE16', ls='--',
+            alpha=0.20, lw=3.0, min_count=50,
+            zorder_fill=Z_MODEL_BAND_ALT, zorder_line=Z_MODEL_LINE_ALT,
+        )
+
+    # --- Observations ---
+    obs = load_shmr_observations()
+
+    if 'moster' in obs:
+        ax.plot(obs['moster']['mvir'],
+                obs['moster']['mstar'] - obs['moster']['mvir'],
+                'k-', lw=2, label='Moster+13', zorder=Z_OBS)
+
+    if 'romeo' in obs:
+        ax.scatter(obs['romeo']['mvir'],
+                   obs['romeo']['mstar'] - obs['romeo']['mvir'],
+                   marker='o', s=50, c='gray', label='Romeo+20',
+                   edgecolor='k', linewidth=0.8, alpha=0.6, zorder=Z_OBS)
+
+    if 'kravtsov' in obs:
+        k = obs['kravtsov']
+        ax.errorbar(k['mvir'], k['mstar'] - k['mvir'],
+                    xerr=[k['xerr_lo'], k['xerr_hi']],
+                    fmt='s', color='k', ms=8, lw=1,
+                    markeredgecolor='k', markeredgewidth=0.8,
+                    markerfacecolor='gray', alpha=0.6, zorder=Z_OBS,
+                    label='Kravtsov+18')
+
+    if 'taylor' in obs:
+        t = obs['taylor']
+        ax.errorbar(t['mvir'], t['ratio'], xerr=t['xerr'], yerr=t['ratio_err'],
+                    fmt='d', color='k', ms=8, lw=1,
+                    markeredgecolor='k', markeredgewidth=0.8,
+                    markerfacecolor='gray', alpha=0.6, zorder=Z_OBS,
+                    label='Taylor+20')
+
+    # Cosmic baryon fraction: the ceiling m*/M_vir cannot exceed if every accreted
+    # baryon turned into a star, so it bounds the plot from above.
+    ax.axhline(np.log10(BARYON_FRAC), color='0.45', ls=':', lw=1.4, zorder=Z_OBS - 1)
+    ax.text(0.015, np.log10(BARYON_FRAC) + 0.06,
+            r'$f_{\mathrm{b}}$: every accreted baryon into stars',
+            transform=ax.get_yaxis_transform(), ha='left', va='bottom',
+            fontsize=10, color='0.35')
+
+    ax.set_xlim(10.0, 15.0)
+    ax.set_ylim(-4.0, 0.0)
+    ax.xaxis.set_major_locator(plt.MultipleLocator(1.0))
+    ax.yaxis.set_major_locator(plt.MultipleLocator(1.0))
+    ax.xaxis.set_minor_locator(plt.MultipleLocator(0.2))
+    ax.yaxis.set_minor_locator(plt.MultipleLocator(0.2))
+    ax.set_xlabel(r'$\log_{10}\ M_{\mathrm{vir}}\ [M_{\odot}]$')
+    ax.set_ylabel(r'$\log_{10}\ (m_{\mathrm{*}} / M_{\mathrm{vir}})$')
+
+    handles, labels = ax.get_legend_handles_labels()
+    sim_set = {'SAGE26 (Millennium)', 'SAGE26 (miniUchuu)', 'SAGE16'}
+    sim_h = [h for h, l in zip(handles, labels) if l in sim_set]
+    sim_l = [l for l in labels if l in sim_set]
+    obs_h = [h for h, l in zip(handles, labels) if l not in sim_set]
+    obs_l = [l for l in labels if l not in sim_set]
+    leg1 = _standard_legend(ax, loc='lower right', handles=sim_h, labels=sim_l)
+    ax.add_artist(leg1)
+    _standard_legend(ax, loc='upper right', handles=obs_h, labels=obs_l)
+    fig.tight_layout()
+
+    save_figure(fig, os.path.join(OUTPUT_DIR,
+                'StellarHaloMassRatio' + OUTPUT_FORMAT))
 
 # ========================== PLOT 6: BULGE MASS-SIZE BY FORMATION TYPE ==========================
 
@@ -6974,8 +7118,9 @@ def plot_15_sfr_vs_stellar_mass(primary, vanilla):
 
     Shows the distribution of galaxies in the SFR-mass plane
     as a KDE contour plot, with C16 as a scatter overlay.
+    Includes median lines exclusively for the star-forming populations.
     """
-    print('Plot 15: SFR vs stellar mass')
+    print('Plot 15: SFR vs stellar mass (All + SF Medians)')
 
     # --- Primary model ---
     sfr = primary['SfrDisk'] + primary['SfrBulge']
@@ -6983,17 +7128,28 @@ def plot_15_sfr_vs_stellar_mass(primary, vanilla):
     log_mass = np.log10(primary['StellarMass'][w])
     log_sfr = np.log10(sfr[w])
 
+    # Safely calculate the SF mask on the already-filtered arrays
+    # log(SFR/Mass) = log(SFR) - log(Mass)
+    starforming_sage26 = (log_sfr - log_mass) > SSFR_CUT
+
     # --- Plot ---
     fig = plt.figure()
     ax = fig.add_subplot(111)
 
     mass_bins = np.arange(8.0, 12.0 + 0.1, 0.1)
+    
+    # Plot ALL SAGE26 galaxies
     plot_binned_median_1sigma(
         ax, log_mass, log_sfr, mass_bins,
-        color='steelblue', label='SAGE26',
+        color='steelblue', label='SAGE26 (All)',
         alpha=0.25, lw=3.5, min_count=50,
         zorder_fill=Z_MODEL_BAND, zorder_line=Z_MODEL_LINE,
     )
+
+    # Plot SAGE26 median for SF only
+    centers, med_sfr, _, _ = binned_median(log_mass[starforming_sage26], log_sfr[starforming_sage26], mass_bins)
+    ax.plot(centers, med_sfr, color='steelblue', lw=1.5, ls=':', label='SAGE26 (SF)', zorder=Z_MODEL_LINE+1)
+
 
     # --- C16 (Vanilla) model ---
     sfr_v = vanilla['SfrDisk'] + vanilla['SfrBulge']
@@ -7001,12 +7157,20 @@ def plot_15_sfr_vs_stellar_mass(primary, vanilla):
     if np.any(w_v):
         log_mass_v = np.log10(vanilla['StellarMass'][w_v])
         log_sfr_v = np.log10(sfr_v[w_v])
+        
+        starforming_vanilla = (log_sfr_v - log_mass_v) > SSFR_CUT
+
+        # Plot ALL SAGE16 galaxies
         plot_binned_median_1sigma(
             ax, log_mass_v, log_sfr_v, mass_bins,
-            color='purple', label='SAGE16', ls='--',
-            alpha=0.20, lw=3.0, min_count=50,
+            color='purple', label='SAGE16 (All)', ls='--',
+            alpha=0.20, lw=3.5, min_count=50,
             zorder_fill=Z_MODEL_BAND_ALT, zorder_line=Z_MODEL_LINE_ALT,
         )
+
+        # Plot SAGE16 median for SF only
+        centers_v, med_sfr_v, _, _ = binned_median(log_mass_v[starforming_vanilla], log_sfr_v[starforming_vanilla], mass_bins)
+        ax.plot(centers_v, med_sfr_v, color='purple', lw=1.5, ls=':', label='SAGE16 (SF)', zorder=Z_MODEL_LINE_ALT+1)
 
     # --- Load Brinchmann et al. (2004) data ---
     bz04_mass, bz04_sfr = load_brinchmann_sfr_mass_2004_data()
@@ -7022,24 +7186,17 @@ def plot_15_sfr_vs_stellar_mass(primary, vanilla):
         ax.errorbar(ter_mass, ter_sfr, xerr=0.2, yerr=0.3, fmt='o', ecolor='black', alpha=0.6, zorder=Z_OBS,
                    mfc='gray', mec='black', ms=8, mew=1.0, elinewidth=1.0, label='Terrazas+17')
         
-     # --- Load and plot GAMA ProSpect Claudia data ---
-        log_ms, log_sfr = load_gama_prospect_claudia()
-        if log_ms is not None and log_sfr is not None:
-            # Plot density contour
-            # X, Y, Z = density_contour(log_ms, log_sfr, bins=[25, 25])
-            # if Z.max() > 0:
-            #     levels = sigma_contour_levels(Z)
-            #     if levels is not None:
-            #         ax.contourf(X, Y, Z, levels=levels, cmap='Greys', alpha=0.3)
-            #         ax.contour(X, Y, Z, levels=levels, colors='black', linestyles='-', alpha=0.5, linewidths=1.0)
-            # Plot binned medians/errors
-            bins = np.linspace(8, 12, 13)
-            centers, med, p25, p75 = binned_median(log_ms, log_sfr, bins)
-            valid = ~np.isnan(med)
-            ax.errorbar(centers[valid], med[valid], yerr=[med[valid] - p25[valid], p75[valid] - med[valid]],
-                        fmt='s', color='black', label='Bellstedt+20', markersize=8, alpha=0.6, zorder=Z_OBS,
-                        markeredgewidth=0.8, markerfacecolor='gray',
-                        markeredgecolor='black')
+    # --- Load and plot GAMA ProSpect Claudia data ---
+    log_ms, log_sfr = load_gama_prospect_claudia()
+    if log_ms is not None and log_sfr is not None:
+        # Plot binned medians/errors
+        bins = np.linspace(8, 12, 13)
+        centers_gama, med_gama, p25_gama, p75_gama = binned_median(log_ms, log_sfr, bins)
+        valid = ~np.isnan(med_gama)
+        ax.errorbar(centers_gama[valid], med_gama[valid], 
+                    yerr=[med_gama[valid] - p25_gama[valid], p75_gama[valid] - med_gama[valid]],
+                    fmt='s', color='black', label='Bellstedt+20', markersize=8, alpha=0.6, zorder=Z_OBS,
+                    markeredgewidth=0.8, markerfacecolor='gray', markeredgecolor='black')
         
 
     ax.set_xlim(8.0, 12.0)
@@ -7051,12 +7208,13 @@ def plot_15_sfr_vs_stellar_mass(primary, vanilla):
     ax.set_xlabel(r'$\log_{10}\ m_{\mathrm{*}}\ [M_{\odot}]$')
     ax.set_ylabel(r'$\log_{10}\ \mathrm{SFR}\ [M_{\odot}\,\mathrm{yr}^{-1}]$')
 
+    # Use startswith to cleanly capture the newly named 'All' and 'SF' simulation labels
     handles, labels = ax.get_legend_handles_labels()
-    sim_set = {'SAGE26', 'SAGE16'}
-    sim_h = [h for h, l in zip(handles, labels) if l in sim_set]
-    sim_l = [l for l in labels if l in sim_set]
-    obs_h = [h for h, l in zip(handles, labels) if l not in sim_set]
-    obs_l = [l for l in labels if l not in sim_set]
+    sim_h = [h for h, l in zip(handles, labels) if l.startswith(('SAGE26', 'SAGE16'))]
+    sim_l = [l for l in labels if l.startswith(('SAGE26', 'SAGE16'))]
+    obs_h = [h for h, l in zip(handles, labels) if not l.startswith(('SAGE26', 'SAGE16'))]
+    obs_l = [l for l in labels if not l.startswith(('SAGE26', 'SAGE16'))]
+    
     leg1 = _standard_legend(ax, loc='lower left', handles=sim_h, labels=sim_l)
     ax.add_artist(leg1)
     _standard_legend(ax, loc='upper left', handles=obs_h, labels=obs_l)
@@ -7120,6 +7278,24 @@ def plot_16_sfrd_history():
             'color': 'steelblue', 'ls': '--', 'lw': 3.5,
             'redshifts': redshifts_mu, 'first_snap': MINIUCHUU_FIRST_SNAP, 'last_snap': MINIUCHUU_LAST_SNAP,
             'volume': MINIUCHUU_VOLUME,
+        })
+
+    # 4. CGM Dynamical Time Model
+    if os.path.exists(CGM_DYN_DIR):
+        sim_dirs.append({
+            'path': CGM_DYN_DIR, 'label': 'SAGE26 (CGM Dyn Time)',
+            'color': 'darkorange', 'ls': '-.', 'lw': 3.5,
+            'redshifts': redshifts, 'first_snap': FirstSnap, 'last_snap': LastSnap,
+            'volume': VOLUME,
+        })
+
+    # 5. Simple CGM with disk smoothing
+    if os.path.exists(DISK_SMOOTH_DIR):
+        sim_dirs.append({
+            'path': DISK_SMOOTH_DIR, 'label': 'SAGE26 (Disk Smooth)',
+            'color': 'darkgreen', 'ls': ':', 'lw': 3.5,
+            'redshifts': redshifts, 'first_snap': FirstSnap, 'last_snap': LastSnap,
+            'volume': VOLUME,
         })
 
     fig = plt.figure()
@@ -7331,14 +7507,14 @@ def plot_16_sfrd_history():
     ax.set_xlim(0.0, 7.5)
     ax.set_ylim(-3.0, -0.5)
 
-    sim_names = {'SAGE26 (Millennium)', 'SAGE26 (miniUchuu)', 'SAGE16'}
+    sim_names = {'SAGE26 (Millennium)', 'SAGE26 (miniUchuu)', 'SAGE16', 'SAGE26 (CGM Dyn Time)'}
     handles, labels = ax.get_legend_handles_labels()
     sim_h = [h for h, l in zip(handles, labels) if l in sim_names]
     sim_l = [l for l in labels if l in sim_names]
     obs_h = [h for h, l in zip(handles, labels) if l not in sim_names]
     obs_l = [l for l in labels if l not in sim_names]
     # Legend order: SAGE16 and SAGE26 (Millennium) swapped
-    sim_order = {'SAGE16': 0, 'SAGE26 (Millennium)': 1, 'SAGE26 (miniUchuu)': 2}
+    sim_order = {'SAGE16': 0, 'SAGE26 (Millennium)': 1, 'SAGE26 (miniUchuu)': 2, 'SAGE26 (CGM Dyn Time)': 3}
     _sim_pairs = sorted(zip(sim_l, sim_h), key=lambda p: sim_order.get(p[0], 99))
     sim_l = [p[0] for p in _sim_pairs]
     sim_h = [p[1] for p in _sim_pairs]
@@ -8373,6 +8549,13 @@ def plot_18b_smf_redshift_grid_wide():
     #         'redshifts': mill_redshifts, 'first_snap': 0, 'last_snap': 63,
     #         'volume': VOLUME, 'mass_convert': MASS_CONVERT,
     #     })
+    if os.path.exists(CGM_DYN_DIR):
+        models.append({
+            'path': CGM_DYN_DIR, 'label': 'SAGE26 (CGM Dyn Time)',
+            'color': 'darkorange', 'ls': '-.', 'lw': 3.5,
+            'redshifts': mill_redshifts, 'first_snap': 0, 'last_snap': 63,
+            'volume': VOLUME, 'mass_convert': MASS_CONVERT,
+        })
 
     # Load observational data
     all_obs = _load_smf_grid_observations()
@@ -11730,6 +11913,16 @@ def plot_40_gas_mass_functions_stacked_recipes():
                     ax.plot(centers[good], phi[good], color='purple', ls='--',
                             lw=3.0, label='SAGE16', zorder=Z_MODEL_LINE_ALT)
 
+            res = _mf(DISK_SMOOTH_DIR, cfg['field'])
+            if res is not None:
+                centers, phi, plo, phi_hi, _ = res
+                good = np.isfinite(phi) & np.isfinite(plo) & np.isfinite(phi_hi)
+                ax.fill_between(centers[good], plo[good], phi_hi[good],
+                                color='darkgreen', alpha=0.20, lw=0.0,
+                                zorder=Z_MODEL_BAND_ALT)
+                ax.plot(centers[good], phi[good], color='darkgreen', ls=':',
+                        lw=3.5, label='SAGE26 (Disk Smooth)', zorder=Z_MODEL_LINE_ALT)
+
             res = _mf(PRIMARY_DIR, cfg['field'])
             if res is not None:
                 centers, phi, plo, phi_hi, _ = res
@@ -12052,6 +12245,7 @@ Z0_PLOTS = {
     3: plot_3_gas_metallicity_vs_stellar_mass,
     4: plot_4_bh_bulge_mass,
     5: plot_5_stellar_halo_mass,
+    51: plot_5b_stellar_halo_mass_ratio,
     6: plot_6_bulge_mass_size,
     61: plot_6b_bulge_mass_size_median,
     15: plot_15_sfr_vs_stellar_mass,

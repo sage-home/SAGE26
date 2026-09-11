@@ -240,8 +240,8 @@ section below) and the unit actually written.
 | Field | Units | Description |
 |-------|-------|-------------|
 | `Regime` | -- | CGM regime flag (see flag table above). |
-| `tcool` | Myr | Cooling time of the CGM gas at the cooling radius. |
-| `tff` | Myr | Free-fall time of the CGM gas at the cooling radius. |
+| `tcool` | Msun / Gyr | Cooled gas rate, `coolingGas / dt`, including the active regime's final suppression. |
+| `tff` | Gyr | Free-fall time of the CGM gas at the cooling radius. |
 | `tcool_over_tff` | dimensionless | Voit (2015) precipitation criterion ratio. |
 | `tdeplete` | Myr | Depletion time of the CGM reservoir under the current cooling rate. |
 | `H2DepletionTime_Gyr` | Gyr | H2 depletion time from the K13 prescription. Set to -1 when not applicable. |

@@ -52,31 +52,23 @@ ReionizationOn              1   %0: switch off
 DiskInstabilityOn           1   %0: switch off; 1: bulge and BH growth through instabilities w. instability starbursts
 
 CGMrecipeOn                 1   %0: switch off
-PrecipCriterionOn           0   %which factors of the Voit precipitation rate mdot = S((10-r)/2)*(M_CGM-M_eq)/t_ff apply: 0: neither, and no hand-over -- mdot = M_CGM/t_ff always; 1: both (default); 2: M_eq only (no f_inflow sigmoid); 3: sigmoid only (no condensation term); 4: neither, keeping the hand-over (the 2x2 reference); 5: SAGE16 cold accretion, mdot = M_CGM/(Rvir/Vvir), sqrt(2) faster than mode 0
 FIREmodeOn                  1   %0: switch off
 
 ConcentrationOn             3   %0: off; 1: Ishiyama+21 lookup table; 2: Vmax/Vvir from simulation; 3: Vmax/Vvir + infall freeze for satellites
 FeedbackFreeModeOn          1   %0: off; 1: Li+24 sigmoid; 2: BK25 (Ishiyama+21 conc); 3: BK25 (ConcentrationOn method); 4: BK25 + log-normal c scatter; 5: Li+24 sharp; 6: Li+24 sigmoid + H2 SF; 7: BK25 log-normal c scatter + H2 SF
 
-DiskRadiusOn                0   %0: published Mo+98 from the instantaneous halo spin; 1: + working Rvir fallback and a bound on r_d/Rvir; 2: + spin vector smoothed over a halo dynamical time (cuts r_d jitter 3x; does NOT fix the low-Len bias in |j|)
-PreventiveHeatingOn         0   %non-AGN preventive cooling suppression: 0: off; 1/2: halo-mass gate (hot/both, multiplicative); 3/4: same but combined with AGN by the stronger of the two; 5: Voit t_cool/t_ff ceiling; 6: gravitational (halo-accretion) heating offset
-
 SaveFullSFH                 0   %0: switch off
+CGMDensityProfile           0   %CGM gas density profile for precipitation: 0: uniform; 1: NFW; 2: beta-profile (beta=2/3); 3: Stern+21 analytic cooling flow (rho ~ r^-1.6 normalised to CGMgas, both timescales evaluated at R_circ = 0.05 Rvir where t_cool/t_ff is minimised, T^(s) = 1.2 T_vir)
+SubstepResolution           1.0 %multiplier on the adaptive substep count (scales the STEPS floor and MAX_STEPS cap); 1.0 = unscaled
 
-SubstepResolution           1.0   %multiplier on the adaptive substep count (scales the STEPS floor and MAX_STEPS cap); 1.0 = unscaled
-
+KarpovModeOn                0   %0: switch off
 
 %------------------------------------------
 %----- SAGE model parameters --------------
 %------------------------------------------
 
 SfrEfficiency               0.05    %efficiency of SF; unused for SFprescription=3,6
-DiskRadiusFactor            1.0     %f_j: angular-momentum retention multiplying the Mo+98 disk radius. 1.0 = full retention; ~0.55 matches the Somerville+18 stellar-size/halo-size ratio
-DiskRadiusMaxFrac           0.15    %ceiling on r_d/Rvir (peak Rvir); used only when DiskRadiusOn > 0
 GasDiskRadiusFactor         1.0     %chi: atomic-disk scale length / stellar-disk scale length, used in the HI ionisation cut only. 1.0 = cospatial (published); observed disks have chi ~ 1.5-2
-PreventiveHeatingMass       1.0e12  %M_prev [Msun]: halo mass at which the cooling flow is suppressed by 50% (PreventiveHeatingOn > 0)
-PreventiveHeatingSlope      2.0     %exponent in f = 1/(1 + (Mvir/M_prev)^slope)
-PreventiveHeatingEfficiency 0.02    %epsilon for PreventiveHeatingOn=6: fraction of the halo accretion energy thermalised in the corona
 FFBMaxEfficiency            0.2     %0.2 fits observations best, 1.0 is theoretical maximum
 
 FeedbackReheatingEpsilon    2.9     %mass of cold gas reheated due to SF (see Martin 1999) (SupernovaRecipeOn=1)
