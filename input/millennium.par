@@ -60,7 +60,7 @@ FeedbackFreeModeOn          1   %0: off; 1: Li+24 sigmoid; 2: BK25 (Ishiyama+21 
 SaveFullSFH                 0   %0: switch off
 CGMDensityProfile           0   %CGM gas density profile for precipitation: 0: uniform; 1: NFW; 2: beta-profile (beta=2/3); 3: Stern+21 analytic cooling flow (rho ~ r^-1.6 normalised to CGMgas, both timescales evaluated at R_circ = 0.05 Rvir where t_cool/t_ff is minimised, T^(s) = 1.2 T_vir)
 SubstepResolution           1.0 %multiplier on the adaptive substep count (scales the STEPS floor and MAX_STEPS cap); 1.0 = unscaled
-
+ColdStreamCeilingOn         1
 KarpovModeOn                0   %0: switch off
 
 %------------------------------------------
@@ -68,7 +68,6 @@ KarpovModeOn                0   %0: switch off
 %------------------------------------------
 
 SfrEfficiency               0.05    %efficiency of SF; unused for SFprescription=3,6
-GasDiskRadiusFactor         1.0     %chi: atomic-disk scale length / stellar-disk scale length, used in the HI ionisation cut only. 1.0 = cospatial (published); observed disks have chi ~ 1.5-2
 FFBMaxEfficiency            0.2     %0.2 fits observations best, 1.0 is theoretical maximum
 
 FeedbackReheatingEpsilon    2.9     %mass of cold gas reheated due to SF (see Martin 1999) (SupernovaRecipeOn=1)

@@ -13,6 +13,9 @@ Usage:
 import h5py as h5
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
+from matplotlib.collections import LineCollection
+from matplotlib.lines import Line2D
 from matplotlib.ticker import FuncFormatter, ScalarFormatter
 import os
 import numpy as np
@@ -53,8 +56,8 @@ FFB_BK25_SMOOTH_DIR = './output/millennium_mbk_smooth/'
 FFB100_DIR          = './output/millennium_ffb100/'
 FFB_BK25_FFB100_DIR = './output/millennium_ffb100_mbk/'
 FFB_NOSIGMOID_DIR = './output/millennium_nosigmoid/'
-CGM_DYN_DIR = './output/millennium_cgmdyn/'
-DISK_SMOOTH_DIR = './output/millennium_disk2/'
+# CGM_DYN_DIR = './output/millennium_cgmdyn/'
+# DISK_SMOOTH_DIR = './output/millennium_disk2/'
 MINIUCHUU_DIR = './output/microuchuu/'
 MODEL_FILE = 'model_0.hdf5'
 OBS_DIR = './data/'
@@ -304,13 +307,14 @@ _DEFAULT_PROPERTIES = [
     'DiskRadius', 'BulgeRadius',
     'Type', 'CentralGalaxyIndex',
     'Posx', 'Posy', 'Posz',
-    'OutflowRate', 'MassLoading', 'Cooling', 'Regime',
+    'OutflowRate', 'MassLoading', 'Cooling', 'Regime', 'CoolingRate'
 ]
 
 # Properties to load for evolution (multi-snapshot) plots
 _EVOLUTION_PROPERTIES = [
     'StellarMass', 'SfrDisk', 'SfrBulge', 'Mvir', 'Rvir',
     'CGMgas', 'HotGas', 'MetalsStellarMass', 'DiskRadius', 'BulgeRadius',
+    'CoolingRate',
     'FFBRegime', 'Regime', 'tcool_over_tff', 'tdeplete', 'tff',
     'GalaxyIndex', 'Type',
 ]
@@ -832,6 +836,83 @@ def baryon_fractions_by_halo_mass(primary, halo_bins=None):
     central_mask = primary['Type'] == 0
     central_compact = compact_idx[central_mask]
     mvir = primary['Mvir'][central_mask]
+    log_mvir = np.log10(mvir)
+
+    # Fractions: component_sum / Mvir for each halo
+    fractions = {}
+    all_keys = ['Total'] + comp_keys
+    for key in all_keys:
+        fractions[key] = halo_sums[key][central_compact] / mvir
+
+    # Bin by halo mass and compute mean +/- stderr
+    bin_idx = np.digitize(log_mvir, halo_bins) - 1
+    results = {k: {'mean': [], 'upper': [], 'lower': []} for k in all_keys}
+    mass_centers = []
+
+    for i in range(len(halo_bins) - 1):
+        w = bin_idx == i
+        n_halos = np.sum(w)
+        if n_halos < 3:
+            continue
+
+        mass_centers.append(np.mean(log_mvir[w]))
+        sqrt_n = np.sqrt(n_halos)
+
+        for key in all_keys:
+            vals = fractions[key][w]
+            mean = np.mean(vals)
+            err = np.std(vals) / sqrt_n
+            results[key]['mean'].append(mean)
+            results[key]['upper'].append(mean + err)
+            results[key]['lower'].append(max(mean - err, 1e-6))
+
+    # Convert to arrays
+    mass_centers = np.array(mass_centers)
+    for key in results:
+        for stat in results[key]:
+            results[key][stat] = np.array(results[key][stat])
+
+    return mass_centers, results
+
+
+def baryon_fractions_by_halo_mass_vanilla(vanilla, halo_bins=None):
+    """
+    Compute mean baryon component fractions binned by halo mass.
+
+    Uses np.bincount to sum components per halo in O(N), avoiding
+    per-halo Python loops.
+
+    Returns
+    -------
+    mass_centers : array
+        Mean log10(Mvir) in each occupied bin.
+    results : dict
+        {component_name: {'mean': array, 'upper': array, 'lower': array}}
+    """
+    if halo_bins is None:
+        halo_bins = np.arange(11.0, 16.1, 0.1)
+
+    cgi = vanilla['CentralGalaxyIndex'].astype(np.int64)
+
+    # Remap CentralGalaxyIndex IDs to compact 0-based group indices
+    unique_ids, compact_idx = np.unique(cgi, return_inverse=True)
+    ngroups = len(unique_ids)
+
+    # Components to track
+    comp_keys = ['StellarMass', 'ColdGas', 'HotGas',
+                 'IntraClusterStars', 'BlackHoleMass', 'EjectedMass']
+
+    # Sum each component by halo using bincount — O(N), fully vectorized
+    halo_sums = {}
+    for key in comp_keys:
+        halo_sums[key] = np.bincount(compact_idx, weights=vanilla[key],
+                                     minlength=ngroups)
+    halo_sums['Total'] = sum(halo_sums[k] for k in comp_keys)
+
+    # Central galaxies define halos
+    central_mask = vanilla['Type'] == 0
+    central_compact = compact_idx[central_mask]
+    mvir = vanilla['Mvir'][central_mask]
     log_mvir = np.log10(mvir)
 
     # Fractions: component_sum / Mvir for each halo
@@ -7280,23 +7361,23 @@ def plot_16_sfrd_history():
             'volume': MINIUCHUU_VOLUME,
         })
 
-    # 4. CGM Dynamical Time Model
-    if os.path.exists(CGM_DYN_DIR):
-        sim_dirs.append({
-            'path': CGM_DYN_DIR, 'label': 'SAGE26 (CGM Dyn Time)',
-            'color': 'darkorange', 'ls': '-.', 'lw': 3.5,
-            'redshifts': redshifts, 'first_snap': FirstSnap, 'last_snap': LastSnap,
-            'volume': VOLUME,
-        })
+    # # 4. CGM Dynamical Time Model
+    # if os.path.exists(CGM_DYN_DIR):
+    #     sim_dirs.append({
+    #         'path': CGM_DYN_DIR, 'label': 'SAGE26 (CGM Dyn Time)',
+    #         'color': 'darkorange', 'ls': '-.', 'lw': 3.5,
+    #         'redshifts': redshifts, 'first_snap': FirstSnap, 'last_snap': LastSnap,
+    #         'volume': VOLUME,
+    #     })
 
-    # 5. Simple CGM with disk smoothing
-    if os.path.exists(DISK_SMOOTH_DIR):
-        sim_dirs.append({
-            'path': DISK_SMOOTH_DIR, 'label': 'SAGE26 (Disk Smooth)',
-            'color': 'darkgreen', 'ls': ':', 'lw': 3.5,
-            'redshifts': redshifts, 'first_snap': FirstSnap, 'last_snap': LastSnap,
-            'volume': VOLUME,
-        })
+    # # 5. Simple CGM with disk smoothing
+    # if os.path.exists(DISK_SMOOTH_DIR):
+    #     sim_dirs.append({
+    #         'path': DISK_SMOOTH_DIR, 'label': 'SAGE26 (Disk Smooth)',
+    #         'color': 'darkgreen', 'ls': ':', 'lw': 3.5,
+    #         'redshifts': redshifts, 'first_snap': FirstSnap, 'last_snap': LastSnap,
+    #         'volume': VOLUME,
+    #     })
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -8549,13 +8630,13 @@ def plot_18b_smf_redshift_grid_wide():
     #         'redshifts': mill_redshifts, 'first_snap': 0, 'last_snap': 63,
     #         'volume': VOLUME, 'mass_convert': MASS_CONVERT,
     #     })
-    if os.path.exists(CGM_DYN_DIR):
-        models.append({
-            'path': CGM_DYN_DIR, 'label': 'SAGE26 (CGM Dyn Time)',
-            'color': 'darkorange', 'ls': '-.', 'lw': 3.5,
-            'redshifts': mill_redshifts, 'first_snap': 0, 'last_snap': 63,
-            'volume': VOLUME, 'mass_convert': MASS_CONVERT,
-        })
+    # if os.path.exists(CGM_DYN_DIR):
+    #     models.append({
+    #         'path': CGM_DYN_DIR, 'label': 'SAGE26 (CGM Dyn Time)',
+    #         'color': 'darkorange', 'ls': '-.', 'lw': 3.5,
+    #         'redshifts': mill_redshifts, 'first_snap': 0, 'last_snap': 63,
+    #         'volume': VOLUME, 'mass_convert': MASS_CONVERT,
+    #     })
 
     # Load observational data
     all_obs = _load_smf_grid_observations()
@@ -10048,7 +10129,10 @@ def _eject_per_star(vvir, z, p):
     eta = _eta_reheat(v, z, p)
     e_fb = coupling * 0.5 * esn
     e_lift = 0.5 * eta * v ** 2
-    return np.where(e_fb > e_lift, (e_fb - e_lift) / (0.5 * v ** 2), np.nan)
+    
+    # Calculate ejection and apply a 1e-5 floor so zeroes aren't dropped
+    ej = (e_fb - e_lift) / (0.5 * v ** 2)
+    return np.maximum(ej, 1e-5)
 
 
 def _log10_tick_formatter(decimals=1):
@@ -10215,8 +10299,12 @@ def plot_24_mass_loading_vs_velocity(primary, vanilla):
                         c2 = np.minimum(c2, p['eps_max'])
                     ef2 = c2 * 0.5 * esn
                     el2 = 0.5 * e2[w2] * v2[w2] ** 2
-                    j2 = np.where(ef2 > el2, (ef2 - el2) / (0.5 * v2[w2] ** 2), np.nan)
-                    k2 = np.isfinite(j2) & (j2 > 0)
+                    
+                    # Retain all galaxies, setting zero/negative ejection to 1e-5
+                    j2 = (ef2 - el2) / (0.5 * v2[w2] ** 2)
+                    j2 = np.maximum(j2, 1e-5)
+                    k2 = np.isfinite(j2)
+                    
                     if k2.sum() > 100:
                         plot_binned_median_1sigma(
                             axR, v2[w2][k2], j2[k2], vbins, color=c, label=None,
@@ -10233,8 +10321,12 @@ def plot_24_mass_loading_vs_velocity(primary, vanilla):
             coupling = np.minimum(coupling, p['eps_max'])
         e_fb = coupling * 0.5 * esn
         e_lift = 0.5 * eta[w] * vv[w] ** 2
-        ej = np.where(e_fb > e_lift, (e_fb - e_lift) / (0.5 * vv[w] ** 2), np.nan)
-        ok = np.isfinite(ej) & (ej > 0)
+        
+        # Retain all galaxies, setting zero/negative ejection to 1e-5
+        ej = (e_fb - e_lift) / (0.5 * vv[w] ** 2)
+        ej = np.maximum(ej, 1e-5)
+        ok = np.isfinite(ej)
+        
         if ok.sum() > 100:
             plot_binned_median_1sigma(
                 axR, vv[w][ok], ej[ok], vbins, color=c, label=None,
@@ -10290,10 +10382,10 @@ def plot_24_mass_loading_vs_velocity(primary, vanilla):
     axL.set_xticks([10**e for e in (1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6)])
     axL.set_yticks([10**e for e in (-1, 0, 1, 2)])
     axR.set_xlim(20, 200); axR.set_ylim(1e-2, 1e4)
-    for _v, _c in _sat_marks:
-        if 20 <= _v <= 200:
-            axR.axvline(_v, ymin=0.0, ymax=0.05, color=_c, lw=2.4,
-                        solid_capstyle='butt', zorder=Z_MODEL_LINE)
+    # for _v, _c in _sat_marks:
+    #     if 20 <= _v <= 200:
+    #         axR.axvline(_v, ymin=0.0, ymax=0.05, color=_c, lw=2.4,
+    #                     solid_capstyle='butt', zorder=Z_MODEL_LINE)
     axR.set_xticks([10**e for e in (1.4, 1.6, 1.8, 2.0, 2.2)])
     axR.set_yticks([10**e for e in (-2, -1, 0, 1, 2, 3, 4)])
     # Both are mass ratios -- Msun of gas per Msun of stars formed -- so they
@@ -11913,15 +12005,15 @@ def plot_40_gas_mass_functions_stacked_recipes():
                     ax.plot(centers[good], phi[good], color='purple', ls='--',
                             lw=3.0, label='SAGE16', zorder=Z_MODEL_LINE_ALT)
 
-            res = _mf(DISK_SMOOTH_DIR, cfg['field'])
-            if res is not None:
-                centers, phi, plo, phi_hi, _ = res
-                good = np.isfinite(phi) & np.isfinite(plo) & np.isfinite(phi_hi)
-                ax.fill_between(centers[good], plo[good], phi_hi[good],
-                                color='darkgreen', alpha=0.20, lw=0.0,
-                                zorder=Z_MODEL_BAND_ALT)
-                ax.plot(centers[good], phi[good], color='darkgreen', ls=':',
-                        lw=3.5, label='SAGE26 (Disk Smooth)', zorder=Z_MODEL_LINE_ALT)
+            # res = _mf(DISK_SMOOTH_DIR, cfg['field'])
+            # if res is not None:
+            #     centers, phi, plo, phi_hi, _ = res
+            #     good = np.isfinite(phi) & np.isfinite(plo) & np.isfinite(phi_hi)
+            #     ax.fill_between(centers[good], plo[good], phi_hi[good],
+            #                     color='darkgreen', alpha=0.20, lw=0.0,
+            #                     zorder=Z_MODEL_BAND_ALT)
+            #     ax.plot(centers[good], phi[good], color='darkgreen', ls=':',
+            #             lw=3.5, label='SAGE26 (Disk Smooth)', zorder=Z_MODEL_LINE_ALT)
 
             res = _mf(PRIMARY_DIR, cfg['field'])
             if res is not None:
@@ -12231,49 +12323,6 @@ def plot_36_selection_thresholds_mz():
 
     save_figure(fig, os.path.join(OUTPUT_DIR,
                 'Selection_Thresholds_Mz' + OUTPUT_FORMAT))
-
-
-# ========================== MAIN ==========================
-
-# Registry of plot functions
-# z=0 plots take (primary, vanilla); evolution plots take (snapdata)
-Z0_PLOTS = {
-    31: plot_1_stellar_mass_function_ssfr_s,
-    30: plot_1_stellar_mass_function_ssfr_q,
-    32: plot_1_stellar_mass_function_ssfr_combined,
-    2: plot_2_baryon_fraction,
-    3: plot_3_gas_metallicity_vs_stellar_mass,
-    4: plot_4_bh_bulge_mass,
-    5: plot_5_stellar_halo_mass,
-    51: plot_5b_stellar_halo_mass_ratio,
-    6: plot_6_bulge_mass_size,
-    61: plot_6b_bulge_mass_size_median,
-    15: plot_15_sfr_vs_stellar_mass,
-    24: plot_24_mass_loading_vs_velocity,
-}
-
-EVOLUTION_PLOTS = {
-    # 7: plot_7_tcool_tff_distribution,
-    # 71: plot_7b_inflow_transition_fraction,
-    # 8: plot_8_precipitation_fraction,
-    # 9: plot_9_cgm_fractions_depletion,
-    # 91: plot_9b_cgm_fractions_grid,
-    # 92: plot_9c_depletion_grid,
-    10: plot_10_sfe_ffb,
-    11: plot_11_ffb_properties,
-    111: plot_11b_ffb_histograms,
-    112: plot_11c_ffb_histograms_mbk25,
-    113: plot_11d_ffb_histograms_combined,
-    114: plot_11e_ffb_histograms_combined_bulge,
-    115: plot_11f_ffb_histograms_combined_diskbulge,
-    12: plot_12_sfh_ffb,
-    121: plot_12b_ffb_regime_history,
-    122: plot_12c_ffb_regime_heatmap,
-    123: plot_12d_sfh_ffb_transitions,
-    124: plot_12e_sfh_ffb_transitions_mbk25,
-    125: plot_12f_sfh_ffb_transitions_stacked,
-    13: plot_13_ffb_vs_redshift,
-}
 
 # Standalone plots (load their own data)
 # =====================================================================
@@ -13090,7 +13139,7 @@ def plot_99_referee_diagnostics():
         print(f'  primary  : {PRIMARY_DIR}  box={BOX_SIZE:g}')
         print(f'  secondary: {MINIUCHUU_DIR}  box={_h2["box_size"]:g}')
         print('  CHECK BOTH ARE THE PRODUCTION VOLUMES BEFORE QUOTING.\n')
-        x = np.arange(8.0, 12.4, 0.25)
+        x = np.arange(10.0, 12.4, 0.25)
         curves = []
         for D, zl, V in ((PRIMARY_DIR, REDSHIFTS, VOLUME),
                          (MINIUCHUU_DIR, MINIUCHUU_REDSHIFTS, MINIUCHUU_VOLUME)):
@@ -13123,6 +13172,264 @@ def plot_99_referee_diagnostics():
     print('END REFEREE DIAGNOSTICS')
     print('=' * 74)
 
+
+def plot_58_coolingrate_vs_mvir(primary, vanilla):
+    """Compare Primary and Vanilla cooled-gas rates at z=0."""
+    print('Plot 58: cooling rate vs halo mass')
+
+    def valid_points(data):
+        mass = np.asarray(data.get('Mvir', []), dtype=float)
+        vvir = np.asarray(data.get('Vvir', []), dtype=float)
+        rate = np.asarray(data.get('CoolingRate', []), dtype=float)
+        
+        # Only mask out physically invalid halos. Do NOT mask out quenched cooling rates.
+        mask = (mass > 0.0) & (vvir > 0.0)
+        
+        valid_mass = mass[mask]
+        valid_rate = rate[mask]
+        valid_vvir = vvir[mask]
+        
+        # Apply an artificial floor to exactly zero (or negative) cooling rates.
+        # 1e3 sits just below the plot's y-axis minimum of 10^4.
+        valid_rate = np.maximum(valid_rate, 1e3)
+        
+        temperature = 35.9 * valid_vvir ** 2
+        
+        return np.log10(valid_mass), valid_rate, temperature
+
+    def binned_statistics(log_mass, rate, temperature):
+        bins = np.arange(10.0, 15.51, 0.05)
+        centers = 0.5 * (bins[:-1] + bins[1:])
+        median = np.full(centers.size, np.nan)
+        sigma = np.full(centers.size, np.nan)
+        median_temp = np.full(centers.size, np.nan)
+        for i in range(centers.size):
+            in_bin = (log_mass >= bins[i]) & (log_mass < bins[i + 1])
+            if np.count_nonzero(in_bin) < 0:
+                continue
+            log_rate = np.log10(rate[in_bin])
+            median[i] = np.median(log_rate)
+            sigma[i] = np.std(log_rate)
+            median_temp[i] = np.median(temperature[in_bin])
+        valid = np.isfinite(median) & np.isfinite(median_temp)
+        return centers[valid], median[valid], sigma[valid], median_temp[valid]
+
+    def draw_curve(ax, x, log_rate, sigma, temperature, norm, cmap, linestyle):
+        if x.size == 0:
+            return
+        ax.fill_between(x, 10 ** (log_rate - sigma), 10 ** (log_rate + sigma),
+                        color=cmap(norm(np.median(temperature))), alpha=0.18)
+        if x.size == 1:
+            ax.plot(x, 10 ** log_rate, linestyle=linestyle, color=cmap(norm(temperature[0])),
+                    marker='o', ms=3)
+            return
+        points = np.column_stack([x, 10 ** log_rate]).reshape(-1, 1, 2)
+        segments = np.concatenate([points[:-1], points[1:]], axis=1)
+        collection = LineCollection(segments, cmap=cmap, norm=norm, linewidth=2.2,
+                                    linestyle=linestyle)
+        collection.set_array(temperature[:-1])
+        ax.add_collection(collection)
+        ax.plot(x, 10 ** log_rate, color='none', linestyle=linestyle,
+                label='_nolegend_')
+
+    log_mass, primary_rate, primary_temp = valid_points(primary)
+    log_mass_v, vanilla_rate, vanilla_temp = valid_points(vanilla)
+
+    if primary_rate.size == 0 and vanilla_rate.size == 0:
+        print('  no positive cooling-rate data found; skipped')
+        return
+
+    primary_curve = binned_statistics(log_mass, primary_rate, primary_temp)
+    vanilla_curve = binned_statistics(log_mass_v, vanilla_rate, vanilla_temp)
+    all_temp = np.concatenate([t for t in (primary_curve[3], vanilla_curve[3]) if t.size])
+    norm = LogNorm(vmin=all_temp.min(), vmax=all_temp.max())
+    cmap = plt.get_cmap('viridis')
+
+    fig, ax = plt.subplots(figsize=(8.0, 6.5))
+    draw_curve(ax, *primary_curve, norm, cmap, '-')
+    draw_curve(ax, *vanilla_curve, norm, cmap, '--')
+
+    colorbar = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax, pad=0.02)
+    colorbar.set_label(r'$T_{\rm vir}$ (K)')
+    ax.set_yscale('log')
+    ax.set_xlabel(r'$\log_{10} M_{\rm vir}\ (M_{\odot})$') 
+    ax.set_ylabel(r'$\dot{m}_{\rm cool}\ (M_{\odot}\ {\rm Gyr}^{-1})$')
+    # ax.set_xlim(10.0, 15.0)
+    # ax.set_ylim(10**4, 10**14)
+    ax.legend(handles=[
+        Line2D([0], [0], color='black', linestyle='-', label='Primary (SAGE26)'),
+        Line2D([0], [0], color='black', linestyle='--', label='Vanilla (SAGE16)'),
+    ], frameon=False)
+    fig.tight_layout()
+    fig.savefig(os.path.join(OUTPUT_DIR, 'CoolingRate_vs_Mvir' + OUTPUT_FORMAT),
+                dpi=200)
+    plt.close(fig)
+
+# ========================== PLOT: COMBINED BARYON FRACTION & COOLING RATE ==========================
+
+def plot_59_baryon_cooling_combined(primary, vanilla):
+    """
+    1 column, 2 rows figure.
+    Top row: Baryonic fraction vs Mvir at z=0 (Primary and Vanilla models).
+    Bottom row: Cooling rate vs Mvir.
+    """
+    print('Plot: Combined Baryon Fraction and Cooling Rate')
+
+    # Bulletproof wrapper: reconstructs grouping and pads missing arrays if they failed to load
+    def _prepare_data_for_baryon_fractions(data):
+        safe_data = dict(data)
+        n_gals = len(safe_data.get('Type', []))
+        if n_gals == 0:
+            return safe_data
+        
+        if 'CentralGalaxyIndex' not in safe_data:
+            safe_data['CentralGalaxyIndex'] = np.cumsum(safe_data['Type'] == 0) - 1
+            
+        for key in ['StellarMass', 'ColdGas', 'HotGas', 'CGMgas', 
+                    'IntraClusterStars', 'BlackHoleMass', 'EjectedMass']:
+            if key not in safe_data:
+                safe_data[key] = np.zeros(n_gals)
+                
+        return safe_data
+
+    fig, axes = plt.subplots(2, 1, figsize=(8, 10), sharex=True)
+    
+    # ==========================
+    # Top Row: Baryon Fractions
+    # ==========================
+    ax1 = axes[0]
+    
+    # Calculate fractions safely using the wrapper
+    mass_centers_p, bf_p = baryon_fractions_by_halo_mass(_prepare_data_for_baryon_fractions(primary))
+    mass_centers_v, bf_v = baryon_fractions_by_halo_mass(_prepare_data_for_baryon_fractions(vanilla))
+
+    components = [
+        ('Total',             'Total',          'black'),
+        ('StellarMass',       'Stars',          'magenta'),
+        ('ColdGas',           'Cold gas',       'blue'),
+        ('HotGas',            'Hot gas',        'red'),
+        ('CGMgas',            'CGM',            'green'),
+        ('IntraClusterStars', 'ICS',            'orange'),
+        ('BlackHoleMass',     'Black holes',    'purple'),
+        ('EjectedMass',       'Ejected gas',    'goldenrod'),
+    ]
+
+    ax1.axhline(y=BARYON_FRAC, color='grey', ls=':', lw=1.5,
+               label=rf'$f_{{b}}$ = {BARYON_FRAC:.2f}')
+
+    for key, label, color in components:
+        # Primary model (Solid lines + Shading)
+        if len(mass_centers_p) > 0 and np.max(bf_p[key]['mean']) > 1e-6:
+            ax1.fill_between(mass_centers_p, bf_p[key]['lower'], bf_p[key]['upper'],
+                            color=color, alpha=0.15)
+            ax1.plot(mass_centers_p, bf_p[key]['mean'],
+                     color=color, ls='-', lw=2.5)
+        
+        # Vanilla model (Dashed lines)
+        # The > 1e-6 check ensures padded zeros (like missing CGMgas) are NOT plotted!
+        if len(mass_centers_v) > 0 and np.max(bf_v[key]['mean']) > 1e-6:
+            ax1.plot(mass_centers_v, bf_v[key]['mean'],
+                     color=color, ls='--', lw=2.0)
+            
+    from matplotlib.lines import Line2D
+    custom_lines = [Line2D([0], [0], color='k', lw=2.5, ls='-'),
+                    Line2D([0], [0], color='k', lw=2.0, ls='--')]
+    leg_models = ax1.legend(custom_lines, ['Primary (SAGE26)', 'Vanilla (SAGE16)'], loc='upper left')
+    ax1.add_artist(leg_models)
+    
+    comp_lines = [Line2D([0], [0], color=c, lw=2.5) for _, _, c in components]
+    ax1.legend(comp_lines, [l for _, l, _ in components], loc='center right', fontsize='small', ncol=2)
+
+    ax1.set_xlim(11.1, 15.0)
+    ax1.set_ylim(0.0, 0.20)
+    ax1.set_ylabel(r'Baryon Fraction')
+    ax1.yaxis.set_major_locator(plt.MultipleLocator(0.05))
+    ax1.yaxis.set_minor_locator(plt.MultipleLocator(0.01))
+
+    # ==========================
+    # Bottom Row: Cooling Rate
+    # ==========================
+    ax2 = axes[1]
+    mvir_bins = np.arange(11.0, 15.0 + 0.1, 0.1)
+
+    if 'CoolingRate' in primary and 'Mvir' in primary:
+        w_p = (primary['Mvir'] > 0) & (primary['CoolingRate'] > 0) & (primary['Type'] == 0)
+        if np.any(w_p):
+            log_mvir_p = np.log10(primary['Mvir'][w_p])
+            log_cool_p = np.log10(primary['CoolingRate'][w_p])
+            plot_binned_median_1sigma(
+                ax2, log_mvir_p, log_cool_p, mvir_bins,
+                color='steelblue', label='Primary (SAGE26)',
+                alpha=0.25, lw=3.0, ls='-', min_count=3,
+                zorder_fill=Z_MODEL_BAND, zorder_line=Z_MODEL_LINE
+            )
+
+    if 'CoolingRate' in vanilla and 'Mvir' in vanilla:
+        w_v = (vanilla['Mvir'] > 0) & (vanilla['CoolingRate'] > 0) & (vanilla['Type'] == 0)
+        if np.any(w_v):
+            log_mvir_v = np.log10(vanilla['Mvir'][w_v])
+            log_cool_v = np.log10(vanilla['CoolingRate'][w_v])
+            plot_binned_median_1sigma(
+                ax2, log_mvir_v, log_cool_v, mvir_bins,
+                color='purple', label='Vanilla (SAGE16)',
+                alpha=0.20, lw=2.5, ls='--', min_count=3,
+                zorder_fill=Z_MODEL_BAND_ALT, zorder_line=Z_MODEL_LINE_ALT
+            )
+
+    ax2.set_xlabel(r'$\log_{10}\ M_{\mathrm{vir}}\ [M_{\odot}]$')
+    ax2.set_ylabel(r'$\log_{10}\ \mathrm{Cooling\ Rate}\ [M_{\odot}/\mathrm{yr}]$')
+    ax2.xaxis.set_major_locator(plt.MultipleLocator(1.0))
+    ax2.xaxis.set_minor_locator(plt.MultipleLocator(0.2))
+    
+    _standard_legend(ax2, loc='upper left')
+
+    fig.tight_layout()
+    save_figure(fig, os.path.join(OUTPUT_DIR, 'BaryonFraction_CoolingRate_Combined' + OUTPUT_FORMAT))
+
+
+# ========================== MAIN ==========================
+
+# Registry of plot functions
+# z=0 plots take (primary, vanilla); evolution plots take (snapdata)
+Z0_PLOTS = {
+    31: plot_1_stellar_mass_function_ssfr_s,
+    30: plot_1_stellar_mass_function_ssfr_q,
+    32: plot_1_stellar_mass_function_ssfr_combined,
+    2: plot_2_baryon_fraction,
+    3: plot_3_gas_metallicity_vs_stellar_mass,
+    4: plot_4_bh_bulge_mass,
+    5: plot_5_stellar_halo_mass,
+    51: plot_5b_stellar_halo_mass_ratio,
+    6: plot_6_bulge_mass_size,
+    61: plot_6b_bulge_mass_size_median,
+    15: plot_15_sfr_vs_stellar_mass,
+    24: plot_24_mass_loading_vs_velocity,
+    58: plot_58_coolingrate_vs_mvir,
+    59: plot_59_baryon_cooling_combined,
+}
+
+EVOLUTION_PLOTS = {
+    # 7: plot_7_tcool_tff_distribution,
+    # 71: plot_7b_inflow_transition_fraction,
+    # 8: plot_8_precipitation_fraction,
+    # 9: plot_9_cgm_fractions_depletion,
+    # 91: plot_9b_cgm_fractions_grid,
+    # 92: plot_9c_depletion_grid,
+    10: plot_10_sfe_ffb,
+    11: plot_11_ffb_properties,
+    111: plot_11b_ffb_histograms,
+    112: plot_11c_ffb_histograms_mbk25,
+    113: plot_11d_ffb_histograms_combined,
+    114: plot_11e_ffb_histograms_combined_bulge,
+    115: plot_11f_ffb_histograms_combined_diskbulge,
+    12: plot_12_sfh_ffb,
+    121: plot_12b_ffb_regime_history,
+    122: plot_12c_ffb_regime_heatmap,
+    123: plot_12d_sfh_ffb_transitions,
+    124: plot_12e_sfh_ffb_transitions_mbk25,
+    125: plot_12f_sfh_ffb_transitions_stacked,
+    13: plot_13_ffb_vs_redshift,
+}
 
 STANDALONE_PLOTS = {
     14: plot_14_density_evolution,
@@ -13189,7 +13496,7 @@ def main():
                              properties=['StellarMass', 'SfrDisk', 'SfrBulge',
                                          'ColdGas', 'MetalsColdGas',
                                          'BlackHoleMass', 'BulgeMass',
-                                         'Mvir', 'Type'])
+                                         'Mvir', 'Vvir', 'CoolingRate', 'Regime', 'Type'])
         print(f'  {len(vanilla["StellarMass"]):,} galaxies loaded')
         print()
 

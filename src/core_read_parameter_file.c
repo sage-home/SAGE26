@@ -100,7 +100,7 @@ int read_parameter_file(const char *fname, struct params *run_params)
     run_params->H2RadialNBins              = 25;
     run_params->H2RadialRMaxFactor         = 5.0;
     run_params->CGMrecipeOn                = 1;
-    run_params->CGMDensityProfile          = 0;
+    run_params->CGMDensityProfile          = 0;  /* 0: uniform, 1: NFW, 2: beta-profile, 3: Stern+21 cooling flow (rho ~ r^-1.6, evaluated at R_circ = 0.05 Rvir, T^(s) = 1.2 T_vir), 4: isothermal (rho ~ r^-2) */
     // run_params->PrecipCriterionOn          = 0; /* both factors of the precipitation rate */
     run_params->RegimeRandomMode           = 0;   /* default: fresh draw each snapshot (published behaviour); 1 makes the regime persistent per galaxy */ /* (hard-code once published)*/
     run_params->FIREmodeOn                 = 1;
@@ -125,7 +125,7 @@ int read_parameter_file(const char *fname, struct params *run_params)
     run_params->ThreshMajorMerger          = 0.3;
     run_params->RecycleFraction            = 0.43;
     run_params->ReIncorporationFactor      = 0.15;
-    run_params->ColdStreamCeilingOn        = 0;     /* 0 reproduces published behaviour */ /* (remove once published)*/
+    run_params->ColdStreamCeilingOn        = 1;     /* 0 reproduces published behaviour */ /* (remove once published)*/
     run_params->StreamMassFactor           = 3.0;   /* Dekel & Birnboim (2006) adopt f = 3 */ /* (remove once published)*/
     // run_params->DiskRadiusFactor           = 1.0;   /* f_j: 1.0 reproduces published behaviour exactly */ /* (remove once published)*/
     // run_params->PreventiveHeatingOn        = 0;      /* 0 reproduces published behaviour bit-for-bit */
@@ -579,7 +579,7 @@ int read_parameter_file(const char *fname, struct params *run_params)
             {"ReionizationOn",         run_params->ReionizationOn,         0, 1},
             {"DiskInstabilityOn",      run_params->DiskInstabilityOn,      0, 1},
             {"CGMrecipeOn",            run_params->CGMrecipeOn,            0, 1},
-            {"CGMDensityProfile",      run_params->CGMDensityProfile,      0, 3},
+            {"CGMDensityProfile",      run_params->CGMDensityProfile,      0, 4},
             // {"PrecipCriterionOn",      run_params->PrecipCriterionOn,      0, 5},
             {"FIREmodeOn",             run_params->FIREmodeOn,             0, 1},
             {"RegimeRandomMode",       run_params->RegimeRandomMode,       0, 1},

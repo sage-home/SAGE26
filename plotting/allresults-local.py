@@ -1787,7 +1787,7 @@ if __name__ == '__main__':
     plt.figure()
     ax = plt.subplot(111)
 
-    tcool = read_hdf(file_list, Snapshot, 'tcool')
+    tcool = read_hdf(file_list, Snapshot, 'CoolingRate')
     Mvir = read_hdf(file_list, Snapshot, 'Mvir') *1.0e10 / Hubble_h # Convert to solar masses
     Rvir = read_hdf(file_list, Snapshot, 'Rvir')
     Regime = read_hdf(file_list, Snapshot, 'Regime')
@@ -1881,3 +1881,82 @@ if __name__ == '__main__':
     plt.savefig(OutputDir + 'cgm_fraction_vs_mvir' + OutputFormat, dpi=150)
     print('Saved file to', outputFile, '\n')
     plt.close()
+
+#--------------------------------------------------------
+
+    # Ejection vs Vvir
+
+    plt.figure()
+    ax = plt.subplot(111)
+
+    w = np.where((SfrDisk + SfrBulge > 0.0) & (MassLoading > 0.0) & (Vvir > 0.0) & (Mvir > 0.0))[0]
+    if len(w) == 0:
+        print('  Skipping ejection_vs_vvir: no galaxies with SFR > 0, MassLoading > 0, and Vvir > 0.\n')
+        plt.close()
+    else:
+        if(len(w) > dilute): w = sample(list(w), dilute)
+
+    MassLoading = read_hdf(file_list, Snapshot, 'MassLoading')[w]
+    Vvir = read_hdf(file_list, Snapshot, 'Vvir')[w]
+    SfrDisk = read_hdf(file_list, Snapshot, 'SfrDisk')[w]
+    SfrBulge = read_hdf(file_list, Snapshot, 'SfrBulge')[w]
+    V_sn = 501.0  # km/s, characteristic supernova velocity
+
+    # reheat = MassLoading * (SfrDisk + SfrBulge)
+    # E_fb = 0.3 * MassLoading * (SfrDisk + SfrBulge) * (V_sn**2)  # Feedback energy from supernovae
+    # E_lift = 0.5 * reheat * (Vvir**2)  # Energy required to lift gas out of the halo
+    # sfr = SfrDisk + SfrBulge
+    # eject = (E_fb - E_lift) / (0.5 * (Vvir**2))  # Ejection energy
+    # eject = np.maximum(0.0, eject)
+
+    # SAGE26 FIRE constants from your text
+    epsilon_disk = 2.9  
+    epsilon_halo = 0.3
+    V_sn = 501.0  
+    
+    sfr = SfrDisk + SfrBulge
+    reheat = MassLoading * sfr
+    
+    # Extract the pure scaling factor 'f' from eta_reheat (MassLoading)
+    f_factor = MassLoading / epsilon_disk
+    
+    # Eq. 4: Feedback Energy (using f_factor, not MassLoading)
+    E_fb = 0.5 * epsilon_halo * f_factor * sfr * (V_sn**2)
+    
+    # Eq. 5: Lifting Energy (using the full MassLoading / eta_reheat)
+    E_lift = 0.5 * reheat * (Vvir**2)
+    
+    # Eq. 6: Ejected mass
+    eject = (E_fb - E_lift) / (0.5 * Vvir**2)
+    
+    # Enforce the condition that ejection cannot be negative
+    eject = np.maximum(0.0, eject)
+
+    print('Ejection sample stats:')
+    print(f'    Ejection energy: {eject.min():.4f} to {eject.max():.4f}')
+
+
+    ejection_efficiency = (eject / sfr) # Ejection efficiency
+
+    print('  Ejection efficiency vs Vvir sample stats:')
+    print(f'    Ejection efficiency: {ejection_efficiency.min():.4f} to {ejection_efficiency.max():.4f}')
+
+    plt.scatter(np.log10(Vvir), np.log10(ejection_efficiency), s=2, alpha=0.5, rasterized=True)
+
+    # Median line and 1-sigma shading
+    bin_edges = np.arange(1.0, 3.0, 0.1)
+    bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+    digitized = np.digitize(np.log10(Vvir), bin_edges)
+    medians = [np.median(np.log10(ejection_efficiency[digitized == i])) for i in range(1, len(bin_edges))]
+    stds = [np.std(np.log10(ejection_efficiency[digitized == i])) for i in range(1, len(bin_edges))]
+
+    ax.fill_between(bin_centers, np.array(medians) - np.array(stds), np.array(medians) + np.array(stds), alpha=0.2, rasterized=True)
+    ax.plot(bin_centers, medians, color='k', lw=2, label='Median ± 1σ')
+
+    ax.set_xlabel(r'$\log_{10} V_{\rm vir}\ (\mathrm{km/s})$')
+    ax.set_ylabel(r'$\mathrm{Ejection\ Efficiency}$')
+    # ax.set_xlim(1.0, 3.0)
+
+    plt.savefig(OutputDir + 'ejection_efficiency_vs_vvir' + OutputFormat, dpi=150)
+    print('Saved file to', outputFile, '\n')
+
