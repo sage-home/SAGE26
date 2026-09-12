@@ -58,9 +58,8 @@ ConcentrationOn             3   %0: off; 1: Ishiyama+21 lookup table; 2: Vmax/Vv
 FeedbackFreeModeOn          1   %0: off; 1: Li+24 sigmoid; 2: BK25 (Ishiyama+21 conc); 3: BK25 (ConcentrationOn method); 4: BK25 + log-normal c scatter; 5: Li+24 sharp; 6: Li+24 sigmoid + H2 SF; 7: BK25 log-normal c scatter + H2 SF
 
 SaveFullSFH                 0   %0: switch off
-CGMDensityProfile           0   %CGM gas density profile for precipitation: 0: uniform; 1: NFW; 2: beta-profile (beta=2/3); 3: Stern+21 analytic cooling flow (rho ~ r^-1.6 normalised to CGMgas, both timescales evaluated at R_circ = 0.05 Rvir where t_cool/t_ff is minimised, T^(s) = 1.2 T_vir)
 SubstepResolution           1.0 %multiplier on the adaptive substep count (scales the STEPS floor and MAX_STEPS cap); 1.0 = unscaled
-ColdStreamCeilingOn         1
+
 KarpovModeOn                0   %0: switch off
 
 %------------------------------------------

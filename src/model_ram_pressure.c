@@ -169,16 +169,31 @@ void ram_pressure_strip_satellite(const int centralgal, const int gal,
     double rho_host;
     if(run_params->CGMrecipeOn == 1 && galaxies[centralgal].Regime == 0
        && galaxies[centralgal].CGMgas > 0.0) {
+        
         const double CGMgas_cgs = galaxies[centralgal].CGMgas * 1e10 * SOLAR_MASS / h;
-        const double Mvir_Msun = CODE_MASS_TO_MSUN(galaxies[centralgal].Mvir, h);
-        rho_host = cgm_density_at_radius(r_cgs, CGMgas_cgs, Rvir_cgs, Mvir_Msun,
-                                         Zcurr, run_params->CGMDensityProfile);
+        
+        // Carr et al. 2023 CGM density profile: rho(r) = rho0 * (r/r0)^(-1.4)
+        const double alpha = 1.4;
+        const double r0_cgs = 0.1 * Rvir_cgs;
+        const double ratio = 10.0; // Rvir / r0 = 10
+        
+        // Volumetric integral factor for mass to find rho0
+        const double I_M = (pow(ratio, 3.0 - alpha) - 1.0) / (3.0 - alpha);
+        const double rho0 = CGMgas_cgs / (4.0 * M_PI * r0_cgs * r0_cgs * r0_cgs * I_M);
+        
+        // Evaluate local density at the satellite's orbital radius.
+        // Bounded by r0 to prevent non-physical singularities if the orbit decays deeply.
+        double r_eval = (r_cgs < r0_cgs) ? r0_cgs : r_cgs; 
+        
+        rho_host = rho0 * pow(r_eval / r0_cgs, -alpha);
+        
     } else if(galaxies[centralgal].HotGas > 0.0) {
         const double HotGas_cgs = galaxies[centralgal].HotGas * 1e10 * SOLAR_MASS / h;
         rho_host = HotGas_cgs / (4.0 * M_PI * Rvir_cgs * r_cgs * r_cgs);
     } else {
         return;   /* no ambient medium to strip against */
     }
+    
     if(!(rho_host > 0.0)) {   /* also rejects NaN */
         return;
     }

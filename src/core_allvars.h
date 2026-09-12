@@ -485,9 +485,9 @@ struct params
     int32_t    ReionizationOn;
     int32_t    DiskInstabilityOn;
     int32_t    CGMrecipeOn;
-    int32_t    CGMDensityProfile;  // 0: uniform, 1: NFW, 2: beta-profile,
-                                 // 3: Stern+21 cooling flow (rho ~ r^-1.6, evaluated at
-                                 //    R_circ = 0.05 Rvir, T^(s) = 1.2 T_vir)
+    // int32_t    CGMDensityProfile;  // 0: uniform, 1: NFW, 2: beta-profile,
+    //                              // 3: Stern+21 cooling flow (rho ~ r^-1.6, evaluated at
+    //                              //    R_circ = 0.05 Rvir, T^(s) = 1.2 T_vir)
     // int32_t    PrecipCriterionOn; // Which factors of the Voit t_cool/t_ff precipitation rate
                                  // mdot = S((10 - r)/2) * (M_CGM - M_eq)/t_ff are applied:
                                  // 0: neither -- mdot = M_CGM / t_ff for every CGM halo

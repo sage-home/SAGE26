@@ -16,12 +16,7 @@
 #include <time.h>
 
 #include "core_allvars.h"
-
 #include "model_misc.h"
-
-#include "core_cool_func.h"
-
-#include "model_cooling_heating.h"
 
 /* -------------------------------------------------------------------------
  * File-scope empirical constants (lifted per STYLE_C.md SS8).
@@ -94,58 +89,6 @@ void determine_and_store_regime(const int ngal, struct GALAXY *galaxies,
         galaxies[p].Regime = new_regime;
     }
 }
-
-// void determine_and_store_regime(const int ngal, struct GALAXY *galaxies,
-//                                 const struct params *run_params)
-// {
-//     for(int p = 0; p < ngal; p++) {
-//         // Skip satellites
-//         if(galaxies[p].mergeType > 0) continue;
-
-//         int32_t new_regime = 1; // Default to CGM/Cold accretion regime
-
-//         // Recombine the total diffuse gas to replicate SAGE16's unified hot reservoir
-//         double total_halo_gas = galaxies[p].HotGas + galaxies[p].CGMgas;
-//         double total_metals = galaxies[p].MetalsHotGas + galaxies[p].MetalsCGMgas;
-
-//         if(total_halo_gas > 0.0 && galaxies[p].Vvir > 0.0) {
-//             const double tcool = galaxies[p].Rvir / galaxies[p].Vvir;
-//             const double temp = 35.9 * galaxies[p].Vvir * galaxies[p].Vvir; // in Kelvin
-
-//             double logZ = -10.0;
-//             if(total_metals > 0.0) {
-//                 logZ = log10(total_metals / total_halo_gas);
-//             }
-
-//             double lambda = get_metaldependent_cooling_rate(log10(temp), logZ);
-
-//             if(lambda > 0.0) {
-//                 double x = PROTONMASS * BOLTZMANN * temp / lambda;
-//                 x /= (run_params->UnitDensity_in_cgs * run_params->UnitTime_in_s);
-//                 const double rho_rcool = x / tcool * 0.885;
-
-//                 if(rho_rcool > 0.0) {
-//                     // Density profile is based on the entire diffuse gas envelope
-//                     const double rho0 = total_halo_gas / (4.0 * M_PI * galaxies[p].Rvir);
-//                     const double rcool = sqrt(rho0 / rho_rcool);
-
-//                     // SAGE16 Classification
-//                     if(rcool > galaxies[p].Rvir) {
-//                         new_regime = 0; // Cold accretion / CGM regime
-//                     } else {
-//                         new_regime = 1; // Hot halo cooling regime
-//                     }
-//                 } else {
-//                     new_regime = 0; // rho_rcool -> 0 implies rcool -> infinity (Cold regime)
-//                 }
-//             } else {
-//                 new_regime = 1; // No cooling (lambda <= 0) implies rcool = 0 (Hot regime)
-//             }
-//         }
-
-//         galaxies[p].Regime = new_regime;
-//     }
-// }
 
 /*
  * Inverse normal CDF (probit function) via Peter Acklam's rational approximation.

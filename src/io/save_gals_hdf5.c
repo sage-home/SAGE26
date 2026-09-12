@@ -1304,7 +1304,7 @@ static int32_t write_header(hid_t file_id, const struct forest_info *forest_info
     CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "H2RadialIntegrationOn", run_params->H2RadialIntegrationOn, H5T_NATIVE_INT);
     CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "H2RadialNBins", run_params->H2RadialNBins, H5T_NATIVE_INT);
     CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "H2RadialRMaxFactor", run_params->H2RadialRMaxFactor, H5T_NATIVE_DOUBLE);
-    CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "CGMDensityProfile", run_params->CGMDensityProfile, H5T_NATIVE_INT);
+    // CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "CGMDensityProfile", run_params->CGMDensityProfile, H5T_NATIVE_INT);
     // CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "PrecipCriterionOn", run_params->PrecipCriterionOn, H5T_NATIVE_INT);
     CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "RegimeRandomMode", run_params->RegimeRandomMode, H5T_NATIVE_INT);
     CREATE_SINGLE_ATTRIBUTE(runtime_group_id, "ConcentrationOn", run_params->ConcentrationOn, H5T_NATIVE_INT);
