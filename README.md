@@ -31,7 +31,7 @@ of halo properties. Test trees for the
 | ICS assembly tracking | always on | — |
 | Full star formation history arrays | `SaveFullSFH` | — |
 | Concentration | `ConcentrationOn` | Ishiyama+21 lookup table, Vmax/Vvir, Vmax/Vvir with subhalo infall freeze |
-| ConsistentTrees, Genesis, Gadget-4 tree readers | `TreeType` | — |
+| ConsistentTrees, Genesis, Gadget-4, Mimic L-Halo tree readers | `TreeType` | — |
 | HDF5 output + libsage.so for Python/PSO | `OutputFormat` | — |
 
 ---
@@ -202,8 +202,10 @@ ICS assembly tracking (`ICS_disrupt`, `ICS_accrete`, `ICS_sum_mt`) is always on.
 
 ### Supported tree formats (`TreeType`)
 
-`lhalo_binary`, `lhalo_hdf5`, `consistent_trees_ascii`, `consistent_trees_hdf5`,
-`genesis_hdf5`, `gadget4_hdf5`
+`lhalo_binary`, `mimic_lhalo_binary`, `lhalo_hdf5`, `consistent_trees_ascii`,
+`consistent_trees_hdf5`, `genesis_hdf5`, `gadget4_hdf5`
+
+`mimic_lhalo_binary` reads the L-Halo binary files that Mimic's tree converter writes (an L-Halo header followed by Mimic's 88-byte halo record, with masses in Msun/h). The reader scales masses to SAGE26's code units and sets the record fields the format lacks to -1; see `src/io/read_tree_mimic_lhalo_binary.c`.
 
 ---
 

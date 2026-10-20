@@ -161,6 +161,9 @@ run_test_if_exists 16 "Halo Assembly & Mergers" "./test_build/test_halo_mergers"
 run_test_if_exists 17 "AGN Feedback" "./test_build/test_agn_feedback" \
     "Testing radio/quasar modes, Eddington limits, and heating..." 18
 
+run_test_if_exists 18 "Mimic L-Halo Reader" "./test_build/test_mimic_lhalo_reader" \
+    "Testing the 88-byte record conversion and malformed-file rejection..." 97
+
 # Count total passes, fails, and skipped tests
 PASSED=0
 FAILED=0

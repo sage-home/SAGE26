@@ -10,6 +10,10 @@ it says otherwise. See
 
 ## Unreleased
 
+### Added
+
+- `TreeType mimic_lhalo_binary`: a reader for the L-Halo binary trees written by Mimic's tree converter (`src/io/read_tree_mimic_lhalo_binary.c`). The files carry the classic L-Halo header followed by Mimic's 88-byte halo record, which stores `M_Crit200` in Msun/h and already-specific `Spin`, and lacks `M_Mean200`, `M_TopHat`, `SubhaloIndex` and `SubHalfMass`. The reader converts each record into `struct halo_data`, scaling the mass to 10^10 Msun/h and setting the absent fields to -1. The existing `lhalo_binary` setup pass is shared through `setup_forests_io_lht_binary_recsize()`, and both readers now refuse a file whose size does not equal header plus one record per halo, or whose per-forest counts do not sum to the header total. Output of the existing readers is unchanged.
+
 ### Removed and renamed parameters (breaking)
 
 The release build carries only the prescriptions the papers use. Switches that

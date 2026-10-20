@@ -35,6 +35,15 @@ PROJECT_SOURCES = \
 	$(SRC_DIR)/model_mergers.c \
 	$(SRC_DIR)/core_cool_func.c
 
+# Extra sources for the Mimic tree-reader test. It exercises only the I/O layer
+# (no model physics, no HDF5, no MPI), so it links these instead of PROJECT_SOURCES.
+MIMIC_READER_SOURCES = \
+	$(SRC_DIR)/core_utils.c \
+	$(SRC_DIR)/core_mymalloc.c \
+	$(SRC_DIR)/io/forest_utils.c \
+	$(SRC_DIR)/io/read_tree_lhalo_binary.c \
+	$(SRC_DIR)/io/read_tree_mimic_lhalo_binary.c
+
 # Test files
 TEST_SOURCES = \
 	test_conservation.c \
@@ -56,6 +65,8 @@ TEST_SOURCES = \
 	test_agn_feedback.c \
 	test_ffb_concentration.c \
 	test_halo_ids.c \
+	test_mimic_lhalo_reader.c
+
 # Function to check if all dependencies exist for a test
 # Usage: $(call check_test_deps,test_name)
 define check_test_deps
@@ -174,6 +185,15 @@ $(OUTPUT_DIR)/test_%: test_%.c $(PROJECT_SOURCES) | $(OUTPUT_DIR)
 	$(CC) $(CFLAGS) $< $(PROJECT_SOURCES) $(LDFLAGS) -o $@
 	@echo "✓ Built $@"
 
+# The Mimic reader test has its own source list, so it needs its own rule; this
+# is more specific than the pattern rule above and takes precedence over it.
+# -DMIMIC_LHALO_RECORDS_PER_READ=2 makes the 5-halo forest span three read chunks
+# (the last one short), so the chunked read path is exercised on a tiny file.
+$(OUTPUT_DIR)/test_mimic_lhalo_reader: test_mimic_lhalo_reader.c test_framework.h $(MIMIC_READER_SOURCES) | $(OUTPUT_DIR)
+	@echo "Building $@..."
+	$(CC) $(CFLAGS) -DMIMIC_LHALO_RECORDS_PER_READ=2 $< $(MIMIC_READER_SOURCES) $(LDFLAGS) -o $@
+	@echo "✓ Built $@"
+
 # Run all tests
 test: $(TEST_BINS)
 	@if [ -z "$(TEST_BINS)" ]; then \
@@ -229,6 +249,9 @@ test_physics: $(OUTPUT_DIR)/test_physics_validation
 test_ffb: $(OUTPUT_DIR)/test_ffb_concentration
 	$(OUTPUT_DIR)/test_ffb_concentration
 
+test_mimic_lhalo_reader: $(OUTPUT_DIR)/test_mimic_lhalo_reader
+	$(OUTPUT_DIR)/test_mimic_lhalo_reader
+
 # Quick test (just conservation laws - fastest)
 quick: $(OUTPUT_DIR)/test_conservation
 	$(OUTPUT_DIR)/test_conservation
@@ -263,4 +286,4 @@ help:
 	@echo "  run_integration_tests.sh - Full integration tests"
 	@echo ""
 
-.PHONY: all test quick clean help test_conservation test_regime test_bulge test_physics
+.PHONY: all test quick clean help test_conservation test_regime test_bulge test_physics test_mimic_lhalo_reader

@@ -2,8 +2,9 @@
  * core_io_tree.h -- public interface for the tree I/O dispatch layer.
  *
  * Declares setup_forests_io(), load_forest(), and cleanup_forests_io(), which
- * dispatch to the correct format-specific reader (lhalo binary/HDF5,
- * Consistent Trees, Genesis, Gadget-4) based on the TreeType parameter.
+ * dispatch to the correct format-specific reader (lhalo binary/HDF5, Mimic
+ * lhalo binary, Consistent Trees, Genesis, Gadget-4) based on the TreeType
+ * parameter.
  *
  * SAGE26 -- released under MIT (see LICENSE).
  */

@@ -49,6 +49,7 @@ make test_conservation    # Conservation laws (37 tests)
 make test_regime         # Regime/CGM physics (21 tests)
 make test_bulge          # Bulge sizes (13 tests)
 make test_physics        # Physics validation (31 tests)
+make test_mimic_lhalo_reader  # Mimic lhalo-binary tree reader (97 checks)
 
 # Quick test (just conservation - fastest)
 make quick

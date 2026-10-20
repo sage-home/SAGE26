@@ -7,8 +7,8 @@
  * and validates the GalaxyIndex multiplier fields.  load_forest() dispatches a
  * single-forest read to the correct reader.  cleanup_forests_io() calls the
  * format cleanup and frees shared arrays (FileNr, original_treenr).
- * Supported TreeTypes: lhalo_binary, lhalo_hdf5, consistent_trees_ascii,
- * consistent_trees_hdf5, genesis_hdf5, gadget4_hdf5.
+ * Supported TreeTypes: lhalo_binary, mimic_lhalo_binary, lhalo_hdf5,
+ * consistent_trees_ascii, consistent_trees_hdf5, genesis_hdf5, gadget4_hdf5.
  *
  * SAGE26 -- released under MIT (see LICENSE).
  */
@@ -28,6 +28,7 @@
 #include "core_io_tree.h"
 
 #include "io/read_tree_lhalo_binary.h"
+#include "io/read_tree_mimic_lhalo_binary.h"
 #include "io/read_tree_consistentrees_ascii.h"
 
 #ifdef HDF5
@@ -84,6 +85,10 @@ int setup_forests_io(struct params *run_params, struct forest_info *forests_info
 
         case lhalo_binary:
             status = setup_forests_io_lht_binary(forests_info, ThisTask, NTasks, run_params);
+            break;
+
+        case mimic_lhalo_binary:
+            status = setup_forests_io_mimic_lhalo_binary(forests_info, ThisTask, NTasks, run_params);
             break;
 
         case consistent_trees_ascii:
@@ -155,6 +160,10 @@ void cleanup_forests_io(enum Valid_TreeTypes TreeType, struct forest_info *fores
         cleanup_forests_io_lht_binary(forests_info);
         break;
 
+    case mimic_lhalo_binary:
+        cleanup_forests_io_mimic_lhalo_binary(forests_info);
+        break;
+
     case consistent_trees_ascii:
 
         /* because consistent trees can only be cleaned up after *ALL* forests
@@ -212,6 +221,10 @@ int64_t load_forest(struct params *run_params, const int64_t forestnr, struct ha
 
     case lhalo_binary:
         nhalos = load_forest_lht_binary(forestnr, halos, forests_info);
+        break;
+
+    case mimic_lhalo_binary:
+        nhalos = load_forest_mimic_lhalo_binary(forestnr, halos, forests_info);
         break;
 
     case consistent_trees_ascii:

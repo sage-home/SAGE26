@@ -43,6 +43,7 @@ enum Valid_TreeTypes
     consistent_trees_ascii = 3,
     consistent_trees_hdf5 = 4,
     gadget4_hdf5 = 5,
+    mimic_lhalo_binary = 6, /* lhalo-binary header with Mimic's 88-byte halo record (read_tree_mimic_lhalo_binary.c) */
     num_tree_types
 };
 

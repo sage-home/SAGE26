@@ -58,3 +58,5 @@ tests/baseline/microuchuu/
 CLAUDE.md
 
 plotting/random_plotting_scripts/
+# Orchestrator delegate artifacts
+.orchestrator/

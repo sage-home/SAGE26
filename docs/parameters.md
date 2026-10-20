@@ -27,7 +27,7 @@ optional parameters take the listed default if omitted.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `TreeType` | string | yes | — | Merger tree format: `lhalo_binary`, `lhalo_hdf5`, `consistent_trees_ascii`, `consistent_trees_hdf5`, `genesis_hdf5`, `gadget4_hdf5`. |
+| `TreeType` | string | yes | — | Merger tree format: `lhalo_binary`, `mimic_lhalo_binary` (L-Halo header with Mimic's 88-byte record), `lhalo_hdf5`, `consistent_trees_ascii`, `consistent_trees_hdf5`, `genesis_hdf5`, `gadget4_hdf5`. |
 | `TreeName` | string | yes | — | Tree file basename (files are named `TreeName.N`). |
 | `SimulationDir` | string | yes | — | Directory containing tree files. |
 | `FileWithSnapList` | string | yes | — | File listing snapshot scale factors, one per line. |

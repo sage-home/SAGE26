@@ -33,6 +33,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <limits.h>
+#include <sys/stat.h>
 
 #include "read_tree_lhalo_binary.h"
 #include "../core_mymalloc.h"
@@ -114,6 +115,34 @@ static void get_forests_filename_lht_binary(char *filename, const size_t len, co
 int setup_forests_io_lht_binary(struct forest_info *forests_info,
                                 const int ThisTask, const int NTasks, struct params *run_params)
 {
+    return setup_forests_io_lht_binary_recsize(forests_info, ThisTask, NTasks, run_params, sizeof(struct halo_data));
+}
+
+/*
+ * setup_forests_io_lht_binary_recsize -- the setup pass for any lhalo-binary layout.
+ *
+ * Everything in setup_forests_io_lht_binary() except the size of one halo
+ * record, which is a parameter here. The header pass, the forest
+ * distribution, the per-forest FileNr / original_treenr bookkeeping and the
+ * GalaxyIndex multipliers depend only on the header and the record count,
+ * so a reader for a different record layout (read_tree_mimic_lhalo_binary.c)
+ * shares this function and supplies its own load routine.
+ *
+ * Inputs:
+ *   record_size -- bytes per halo record on disk. The byte offset to a forest
+ *                  is the header size plus record_size times the halos before
+ *                  it in the file.
+ *
+ * Checks:
+ *   Each file this task opens must be exactly header + record_size * totnhalos
+ *   bytes long. A mismatch means the file was not written with this record
+ *   layout (most likely the parameter file names the wrong TreeType), and the
+ *   forest offsets would all be wrong, so it is an error.
+ */
+int setup_forests_io_lht_binary_recsize(struct forest_info *forests_info,
+                                        const int ThisTask, const int NTasks, struct params *run_params,
+                                        const size_t record_size)
+{
     const int firstfile = run_params->FirstFile;
     const int lastfile = run_params->LastFile;
 
@@ -124,8 +153,9 @@ int setup_forests_io_lht_binary(struct forest_info *forests_info,
 
     /* wasteful to allocate for lastfile + 1 indices, rather than numfiles; but makes indexing easier */
     int64_t *totnforests_per_file = calloc(lastfile + 1, sizeof(totnforests_per_file[0]));
-    if(totnforests_per_file == NULL) {
-        fprintf(stderr,"Error: Could not allocate memory to store the number of forests in each file\n");
+    int64_t *totnhalos_per_file = calloc(lastfile + 1, sizeof(totnhalos_per_file[0]));
+    if(totnforests_per_file == NULL || totnhalos_per_file == NULL) {
+        fprintf(stderr,"Error: Could not allocate memory to store the number of forests and halos in each file\n");
         perror(NULL);
         return MALLOC_FAILURE;
     }
@@ -141,6 +171,8 @@ int setup_forests_io_lht_binary(struct forest_info *forests_info,
         if(fd < 0) {
             fprintf(stderr, "Error: can't open file `%s'\n", filename);
             perror(NULL);
+            free(totnforests_per_file);
+            free(totnhalos_per_file);
             return FILE_NOT_FOUND;
         }
         int tmp;
@@ -149,6 +181,7 @@ int setup_forests_io_lht_binary(struct forest_info *forests_info,
         totnforests += totnforests_per_file[filenr];
 
         mypread(fd, &tmp, sizeof(tmp), 4);
+        totnhalos_per_file[filenr] = tmp;
         totnhalos += tmp;
         close(fd);
     }
@@ -263,11 +296,38 @@ int setup_forests_io_lht_binary(struct forest_info *forests_info,
 
         const int64_t nforests_to_process_this_file = num_forests_to_process_per_file[filenr];
         const size_t nbytes = totnforests_per_file[filenr] * sizeof(int32_t);
+
+        /* The file must hold exactly the header plus one record per halo. Anything
+         * else means these files were not written with this record layout, and
+         * every forest offset computed below would be wrong. */
+        struct stat file_stat;
+        XRETURN(fstat(fd, &file_stat) == 0, FILE_READ_ERROR,
+                "Error: could not stat file `%s'\n", filename);
+        const int64_t expected_bytes = (int64_t) (2 * sizeof(int32_t) + nbytes) + totnhalos_per_file[filenr] * (int64_t) record_size;
+        XRETURN((int64_t) file_stat.st_size == expected_bytes, EXIT_FAILURE,
+                "Error: file `%s' is %"PRId64" bytes, but its header (%"PRId64" forests, %"PRId64" halos) "
+                "with %zu-byte halo records implies %"PRId64" bytes.\n"
+                "The file was not written in the record layout that TreeType selects. Check TreeType.\n",
+                filename, (int64_t) file_stat.st_size, totnforests_per_file[filenr], totnhalos_per_file[filenr],
+                record_size, expected_bytes);
         int32_t *buffer = malloc(nbytes);
         XRETURN(buffer != NULL, MALLOC_FAILURE,
                 "Error: Could not allocate memory to read nhalos per forest. Bytes requested = %zu\n", nbytes);
 
         mypread(fd, buffer, nbytes, 8); /* the last argument says to start after sizeof(totntrees) + sizeof(totnhalos) */
+
+        /* The per-forest counts must add up to the header's halo total, or the
+         * size check above proved nothing about where the forests start. */
+        int64_t sum_nhalos_in_file = 0;
+        for(int64_t i=0;i<totnforests_per_file[filenr];i++) {
+            XRETURN(buffer[i] >= 0, EXIT_FAILURE,
+                    "Error: file `%s' forest %"PRId64" has a negative halo count (%d)\n", filename, i, buffer[i]);
+            sum_nhalos_in_file += buffer[i];
+        }
+        XRETURN(sum_nhalos_in_file == totnhalos_per_file[filenr], EXIT_FAILURE,
+                "Error: file `%s' header says %"PRId64" halos but its per-forest counts sum to %"PRId64"\n",
+                filename, totnhalos_per_file[filenr], sum_nhalos_in_file);
+
         buffer += start_forestnum_to_process_per_file[filenr];
         for(int k=0;k<nforests_to_process_this_file;k++) {
             forestnhalos[k] = buffer[k];
@@ -277,7 +337,7 @@ int setup_forests_io_lht_binary(struct forest_info *forests_info,
         /* first compute the byte offset to the halos in start_forestnum */
         size_t byte_offset_to_halos = sizeof(int32_t) + sizeof(int32_t) + nbytes;/* start at the beginning of halo #0 in tree #0 */
         for(int64_t i=0;i<start_forestnum_to_process_per_file[filenr];i++) {
-            byte_offset_to_halos += buffer[i]*sizeof(struct halo_data);
+            byte_offset_to_halos += buffer[i]*record_size;
         }
         free(buffer);
 
@@ -293,7 +353,7 @@ int setup_forests_io_lht_binary(struct forest_info *forests_info,
             XRETURN(i + nforests_so_far < lht->nforests, EXIT_FAILURE,
                     "ThisTask = %d Assigning to index = %"PRId64" but only space of %"PRId64" forest fds\n", ThisTask, i + nforests_so_far, lht->nforests);
             lht->fd[i + nforests_so_far] = fd;
-            byte_offset_to_halos += forestnhalos[i]*sizeof(struct halo_data);
+            byte_offset_to_halos += forestnhalos[i]*record_size;
 
             // Can't guarantee that the `FileNr` variable in the tree file is correct.
             // Hence let's track it explicitly here.
@@ -326,6 +386,7 @@ int setup_forests_io_lht_binary(struct forest_info *forests_info,
     free(num_forests_to_process_per_file);
     free(start_forestnum_to_process_per_file);
     free(totnforests_per_file);
+    free(totnhalos_per_file);
 
     /* Finally setup the multiplication factors necessary to generate
        unique galaxy indices (across all files, all trees and all tasks) for this run*/
